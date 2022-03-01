@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <style>
+            canvas { border: 1px solid black; }
+          </style>
+    </head>
 
-<body>
+<body onload="draw();">
 
   <p>Перед скриптом...</p>
 
   <script src="jscode.js"></script>
+  <canvas id="canvas" width="1000" height="500">
+  </canvas>
 
   <p>...После скрипта.</p>
 
