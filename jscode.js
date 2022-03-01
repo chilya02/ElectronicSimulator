@@ -56,41 +56,86 @@ function draw(){
 
 
     //Константы резистора
-    const connectorLength = 3;
-    const mainWidth = 10;
-    const mainHeight = 4;
+    const wireResLength = 4;
+    const mainResW = 10;
+    const mainResH = 4;
+    const wireLampLength = 5.6;
+    const mainLampR = 3.4;
 
 
-    //Рисуем гооризонтальный резистор
-    let x = 0;
-    let y = 5;
+
+    //Рисуем горизонтальный резистор
+    
+    let x = 10;
+    let y = 10;
 
     let resistor = new Path2D(`M${x*SCALE} ${y*SCALE} 
-    h ${connectorLength*SCALE} 
-    v ${mainHeight/2*SCALE} 
-    h ${mainWidth*SCALE} 
-    v -${mainHeight*SCALE} 
-    h -${mainWidth*SCALE} 
-    v ${mainHeight/2*SCALE} 
-    M${(x+mainWidth+connectorLength)*SCALE} ${y*SCALE} 
-    h ${connectorLength*SCALE} 
+    h ${wireResLength*SCALE} 
+    v ${mainResH/2*SCALE} 
+    h ${mainResW*SCALE} 
+    v -${mainResH*SCALE} 
+    h -${mainResW*SCALE} 
+    v ${mainResH/2*SCALE} 
+    M${(x+mainResW+wireResLength)*SCALE} ${y*SCALE} 
+    h ${wireResLength*SCALE} 
     `);
-    ctx.stroke(resistor);
+
+    y = 20
+
+    // Рисуем горизонтальную лампу
+
+    let lamp = new Path2D(`M${x*SCALE} ${y*SCALE}
+    h ${wireLampLength*SCALE} 
+    a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
+    a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
+    m ${mainLampR*SCALE*2} 0
+    h ${wireLampLength*SCALE}
+    m -${(mainLampR+wireLampLength)*SCALE} 0
+    l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+    m -${mainLampR*1.4*SCALE} 0
+    l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
+    m -${mainLampR*1.4*SCALE} 0
+    l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+    `);
+    
+    
+    ctx.stroke(resistor)
+    ctx.stroke(lamp);
+
+    x = 40;
+    y = 8;
+
+
+    //Рисуем вертикальную лампу
+    lamp = new Path2D(`M${x*SCALE} ${y*SCALE}
+    v ${wireLampLength*SCALE} 
+    a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
+    a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
+    m 0 ${mainLampR*SCALE*2}
+    v ${wireLampLength*SCALE}
+    m 0 -${(mainLampR+wireLampLength)*SCALE}
+    l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+    m -${mainLampR*1.4*SCALE} 0
+    l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
+    m -${mainLampR*1.4*SCALE} 0
+    l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+    `);
+
 
     //Рисуем вертикальный резистор
-        x = 5;
-        y = 8;
-        resistor = new Path2D(`M${x*SCALE} ${y*SCALE} 
-        v ${connectorLength*SCALE} 
-        h ${mainHeight/2*SCALE} 
-        v ${mainWidth*SCALE} 
-        h -${mainHeight*SCALE} 
-        v -${mainWidth*SCALE} 
-        h ${mainHeight/2*SCALE} 
-        M${x*SCALE} ${(y+mainWidth+connectorLength)*SCALE} 
-        v ${connectorLength*SCALE} 
-        `);
-    ctx.stroke(resistor);
+    x = 50;
 
-    
+        resistor = new Path2D(`M${x*SCALE} ${y*SCALE} 
+        v ${wireResLength*SCALE} 
+        h ${mainResH/2*SCALE} 
+        v ${mainResW*SCALE} 
+        h -${mainResH*SCALE} 
+        v -${mainResW*SCALE} 
+        h ${mainResH/2*SCALE} 
+        M${x*SCALE} ${(y+mainResW+wireResLength)*SCALE} 
+        v ${wireResLength*SCALE} 
+        `);
+
+        ctx.stroke(resistor)
+        ctx.stroke(lamp);
 }
