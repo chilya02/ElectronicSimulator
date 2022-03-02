@@ -6,34 +6,86 @@ const SCALE = 10;
 
 
 class Element {
-    constructor() {};
+
+    constructor(x, y, orientation) {
+
+        this._orientation = orientation % 360;
+        this._calcCoordinates(x, y);
+        let path = this._getPath()
+        this._draw(path);
+
+    };
 
     _draw(path){
         let element = new Path2D(path);
         ctx.stroke(element);
     }
+
+    /*rotate(angle){
+        this._orientation += angle;
+        this._calcCoordinates();
+        let path = this._getPath();
+        this._draw(path);
+    }*/
+
+    _calcCoordinates(x, y){
+
+        switch (this._orientation){
+
+            case 0:
+                this.x1 = x;
+                this.y1 = y;
+                this.x2 = this.x1 + ELEMENT_LENGTH;
+                this.y2 = this.y1;
+            break;
+
+            case 90:
+                this.x1 = x;
+                this.y1 = y;
+                this.x2 = this.x1;
+                this.y2 = this.y1 - ELEMENT_LENGTH;
+            break;
+
+            case 180:
+                this.x1 = x;
+                this.y1 = y;
+                this.x2 = this.x1 - ELEMENT_LENGTH;
+                this.y2 = this.y1;
+            break;
+
+            case 270:
+                this.x1 = x;
+                this.y1 = y;
+                this.x2 = this.x1;
+                this.y2 = this.y1 + ELEMENT_LENGTH;
+            break;
+        }
+
+        console.log(`x1: ${this.x1}, y1: ${this.y1}, x2: ${this.x2}, y2: ${this.y2}`)
+    }
 }
 
 
 class Resistor extends Element {
-    constructor(x, y, orientation) {
-        super();
-        this._draw(x, y, orientation)
-    }
 
-    _draw(x, y, orientation){
+    constructor(x, y, orientation) {super(x, y, orientation)}
 
+    _getPath(){
+        
         //Constants for Resistor params
 
-        const wireResLength = 4;
         const mainResW = 10;
         const mainResH = 4;
+        const wireResLength = (ELEMENT_LENGTH - mainResW) / 2;
 
         let path;
         
         //SVG for drawing with orientation
 
-        switch (orientation % 180){
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
 
             case 0:
                 path = `M${x*SCALE} ${y*SCALE} 
@@ -43,11 +95,35 @@ class Resistor extends Element {
                 v -${mainResH*SCALE} 
                 h -${mainResW*SCALE} 
                 v ${mainResH/2*SCALE} 
-                M${(x+mainResW+wireResLength)*SCALE} ${y*SCALE} 
+                m ${mainResW*SCALE} 0
                 h ${wireResLength*SCALE} `;
             break;
 
             case 90:
+                path = `M${x*SCALE} ${y*SCALE} 
+                v -${wireResLength*SCALE} 
+                h ${mainResH/2*SCALE} 
+                v -${mainResW*SCALE} 
+                h -${mainResH*SCALE} 
+                v ${mainResW*SCALE} 
+                h ${mainResH/2*SCALE} 
+                m 0 -${mainResW*SCALE} 
+                v -${wireResLength*SCALE}`;
+            break;
+
+            case 180:
+                path = `M ${x*SCALE} ${y*SCALE} 
+                h -${wireResLength*SCALE} 
+                v ${mainResH/2*SCALE} 
+                h -${mainResW*SCALE} 
+                v -${mainResH*SCALE} 
+                h ${mainResW*SCALE} 
+                v ${mainResH/2*SCALE} 
+                m -${mainResW*SCALE} 0
+                h -${wireResLength*SCALE} `;
+            break;
+
+            case 270:
                 path = `M${x*SCALE} ${y*SCALE} 
                 v ${wireResLength*SCALE} 
                 h ${mainResH/2*SCALE} 
@@ -55,34 +131,35 @@ class Resistor extends Element {
                 h -${mainResH*SCALE} 
                 v -${mainResW*SCALE} 
                 h ${mainResH/2*SCALE} 
-                M${x*SCALE} ${(y+mainResW+wireResLength)*SCALE} 
+                m 0 ${mainResW*SCALE} 
                 v ${wireResLength*SCALE}`;
             break;
         }
 
-        super._draw(path);
+        return path;
     }
 }
 
 
 class Key extends Element {
-    constructor(x, y, orientation) {
-        super();
-        this._draw(x, y, orientation);
-    }
 
-    _draw(x, y, orientation){
+    constructor(x, y, orientation) {super(x, y, orientation)}
+
+    _getPath(){
 
         //Constants for Key params
 
-        const wireKeyLength = 6;
         const mainKeyLength = 6;
+        const wireKeyLength = (ELEMENT_LENGTH - mainKeyLength) / 2;
 
         let path;
 
         //SVG for drawing with params
 
-        switch (orientation){
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
 
             case 0:
                 path = `M${x * SCALE} ${y * SCALE}
@@ -94,52 +171,53 @@ class Key extends Element {
 
             case 90:
                 path = `M${x * SCALE} ${y * SCALE}
-                v ${wireKeyLength * SCALE}
-                l ${0.5 * mainKeyLength * SCALE} ${0.8 * mainKeyLength * SCALE}
-                m -${0.5 * mainKeyLength * SCALE} ${0.2 * mainKeyLength * SCALE}
-                v ${wireKeyLength * SCALE}`;
+                v -${wireKeyLength * SCALE}
+                l -${0.5 * mainKeyLength * SCALE} -${0.8 * mainKeyLength * SCALE}
+                m ${0.5 * mainKeyLength * SCALE} -${0.2 * mainKeyLength * SCALE}
+                v -${wireKeyLength * SCALE}`;
             break;
 
             case 180:
                 path = `M${x * SCALE} ${y * SCALE}
-                h ${wireKeyLength * SCALE}
-                l ${0.8 * mainKeyLength * SCALE} ${0.5 * mainKeyLength * SCALE}
-                m ${0.2 * mainKeyLength * SCALE} -${0.5 * mainKeyLength * SCALE}
-                h ${wireKeyLength * SCALE}`;
+                h -${wireKeyLength * SCALE}
+                l -${0.8 * mainKeyLength * SCALE} ${0.5 * mainKeyLength * SCALE}
+                m -${0.2 * mainKeyLength * SCALE} -${0.5 * mainKeyLength * SCALE}
+                h -${wireKeyLength * SCALE}`;
             break;
 
             case 270:
                 path = `M${x * SCALE} ${y * SCALE}
                 v ${wireKeyLength * SCALE}
-                l -${0.5 * mainKeyLength * SCALE} ${0.8 * mainKeyLength * SCALE}
-                m ${0.5 * mainKeyLength * SCALE} ${0.2 * mainKeyLength * SCALE}
+                l ${0.5 * mainKeyLength * SCALE} ${0.8 * mainKeyLength * SCALE}
+                m -${0.5 * mainKeyLength * SCALE} ${0.2 * mainKeyLength * SCALE}
                 v ${wireKeyLength * SCALE}`;
             break;
         }
 
-        super._draw(path);
+        return path;
     }
 }
 
 
 class Lamp extends Element {
-    constructor(x, y, orientation) {
-        super();
-        this._draw(x, y, orientation);
-    }
 
-    _draw(x, y, orientation){
+    constructor(x, y, orientation) {super(x, y, orientation)}
+
+    _getPath(){
         
         //Constants for Lamp params
         
-        const wireLampLength = 5.6;
         const mainLampR = 3.4;
+        const wireLampLength = ELEMENT_LENGTH / 2 - mainLampR;
 
         let path;
 
         //SVG for drawing with params
 
-        switch (orientation % 180){
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
 
             case 0:
                 path = `M${x*SCALE} ${y*SCALE}
@@ -158,6 +236,36 @@ class Lamp extends Element {
 
             case 90:
                 path = `M${x*SCALE} ${y*SCALE}
+                v -${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
+                m 0 -${mainLampR*SCALE*2}
+                v -${wireLampLength*SCALE}
+                m 0 ${(mainLampR+wireLampLength)*SCALE}
+                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+                m -${mainLampR*1.4*SCALE} 0
+                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
+                m -${mainLampR*1.4*SCALE} 0
+                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+            break;
+
+            case 180:
+                path = `M${x*SCALE} ${y*SCALE}
+                h -${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
+                m -${mainLampR*SCALE*2} 0
+                h -${wireLampLength*SCALE}
+                m ${(mainLampR+wireLampLength)*SCALE} 0
+                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
+                m -${mainLampR*1.4*SCALE} 0
+                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
+                m -${mainLampR*1.4*SCALE} 0
+                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+            break;
+
+            case 270:
+                path = `M${x*SCALE} ${y*SCALE}
                 v ${wireLampLength*SCALE} 
                 a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
                 a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
@@ -169,14 +277,16 @@ class Lamp extends Element {
                 l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
                 m -${mainLampR*1.4*SCALE} 0
                 l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+            break;
         }
 
-        super._draw(path);
+        return path;
     }
 }
 
 
 class Wire extends Element {
+
     constructor() {
         super();
     }
@@ -184,3 +294,11 @@ class Wire extends Element {
 
 let canvas = document.getElementById('canvas')
 let ctx = canvas.getContext('2d');
+
+ctx.fillStyle = "#000000";
+ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
+
+ctx.lineWidth = 4;
+ctx.strokeStyle = '#808080';
+
+let elements = [];
