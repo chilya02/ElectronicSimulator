@@ -101,6 +101,7 @@ class Element {
         this._calcCoordinates();
         this._calcPath();
 
+        this.lastSelected = null;
         this.selected = false;
         this.update = false;
         this.draw(ctx);
@@ -158,10 +159,31 @@ class Element {
         }
     }
 
+    _checkNodes(xAbs, yAbs, isPressed){
+        for (let node of [this._node1, this._node2]){
+            node.checkPoint(xAbs, yAbs, isPressed);
+            if (node.selected) this.lastSelected = node;
+
+            this.update = this.update | node.update;
+            node.update = false;
+        }
+    }
+
     checkPoint(xAbs, yAbs, xStart, yStart, isPressed){
 
-        this._node1.checkPoint(xAbs, yAbs, isPressed);
-        this._node2.checkPoint(xAbs, yAbs, isPressed);
+        if (this.lastSelected){
+
+            this.lastSelected.checkPoint(xAbs, yAbs, isPressed);
+
+            if (this.lastSelected.selected){
+                this.update = this.update | this.lastSelected.update;
+                this.lastSelected.update = false;
+            } else{
+                this._checkNodes(xAbs, yAbs, isPressed);
+            }
+        } else{
+            this._checkNodes(xAbs, yAbs, isPressed);
+        }
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -173,14 +195,139 @@ class Element {
             if (this.selected & !isPressed){this.selected = false;}
         }
 
-        if (this.selected & isPressed){
-            this.move(Math.round((xAbs - xStart)/SCALE), Math.round((yAbs - yStart)/SCALE))
+        if (isPressed){
+
+            let dx = Math.round((xAbs - xStart)/SCALE);
+            let dy = Math.round((yAbs - yStart)/SCALE);
+
+            if (this._node1.selected | this._node2.selected){
+                this.rotate(x, y)
+            }
+            else { 
+                if (this.selected){
+                    this.move(dx, dy)
+                }
+            }
+        }
+    }
+
+    rotate(x, y){
+
+        if (this._node1.selected){
+
+            let dx = x - this.x2;
+            let dy = y - this.y2;
+
+            switch (this._orientation){
+
+                case 0:
+                    if (Math.abs(dy/dx) > 1){
+                        this.x1 += ELEMENT_LENGTH;
+                        this.y1 += (dy/dx) > 0 ? -ELEMENT_LENGTH: ELEMENT_LENGTH;
+                        this._orientation += (dy/dx) > 0 ? -90 : 90;
+                        this.update = true;
+                    } else if (dx > 0){
+                        this.x1 += ELEMENT_LENGTH * 2;
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 90:
+                    if (Math.abs(dx/dy) > 1){
+                        this.x1 += (dx/dy) > 0 ? ELEMENT_LENGTH: -ELEMENT_LENGTH;
+                        this.y1 -= ELEMENT_LENGTH;
+                        this._orientation += (dx/dy) > 0 ? 90 : -90;
+                        this.update = true;
+                    } else if (dy < 0){
+                        this.y1 -= ELEMENT_LENGTH * 2; 
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 180:
+                    if (Math.abs(dy/dx) > 1){
+                        this.x1 -= ELEMENT_LENGTH;
+                        this.y1 += (dy/dx) > 0 ? ELEMENT_LENGTH: -ELEMENT_LENGTH;
+                        this._orientation += (dy/dx) > 0 ? -90 : 90;
+                        this.update = true;
+                    } else if (dx < 0){
+                        this.x1 -= ELEMENT_LENGTH * 2;
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 270:
+                    if (Math.abs(dx/dy) > 1){
+                        this.x1 += (dx/dy) > 0 ? -ELEMENT_LENGTH: ELEMENT_LENGTH;
+                        this.y1 += ELEMENT_LENGTH;
+                        this._orientation += (dx/dy) > 0 ? 90 : -90;
+                        this.update = true;
+                    } else if (dy > 0){
+                        this.y1 += ELEMENT_LENGTH * 2;
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+                }
         }
 
-        this.update = this.update | this._node1.update | this._node2.update;
+        if (this._node2.selected){
 
-        this._node1.update = false;
-        this._node2.update = false;
+            let dx = x - this.x1;
+            let dy = y - this.y1;
+            
+            switch (this._orientation){
+
+                case 0:
+                    if (Math.abs(dy/dx) > 1){
+                        this._orientation += (dy/dx) > 0 ? -90 : 90;
+                        this.update = true;
+                    } else if (dx < 0){
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 90:
+                    if (Math.abs(dx/dy) > 1){
+                        this._orientation += (dx/dy) > 0 ? 90 : -90;
+                        this.update = true;
+                    } else if (dy > 0){
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 180:
+                    if (Math.abs(dy/dx) > 1){
+                        this._orientation += (dy/dx) > 0 ? -90 : 90;
+                        this.update = true;
+                    } else if (dx > 0){
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+                case 270:
+                    if (Math.abs(dx/dy) > 1){
+                        this._orientation += (dx/dy) > 0 ? 90 : -90;
+                        this.update = true;
+                    } else if (dy < 0){
+                        this._orientation += 180;
+                        this.update = true;
+                    }
+                break;
+
+            }
+        }
+
+        if (this.update) {
+            this._calcCoordinates();
+            this._calcPath();
+        }
     }
 
     draw(ctx){
@@ -194,7 +341,7 @@ class Element {
         this._node1.draw(ctx);
         this._node2.draw(ctx);
 
-        console.log('DRAW')
+        //console.log('DRAW')
     }
 
     _calcCoordinates(){  
@@ -236,7 +383,7 @@ class Element {
         this._node1.setPoint(this.x1, this.y1);
         this._node2.setPoint(this.x2, this.y2);
 
-        console.log(`x1: ${this.x1}, y1: ${this.y1}, x2: ${this.x2}, y2: ${this.y2}`)
+        //console.log(`x1: ${this.x1}, y1: ${this.y1}, x2: ${this.x2}, y2: ${this.y2}`)
     }
 
     move(dx, dy){
@@ -512,7 +659,7 @@ class Layout{
 
     constructor(){
         this.elements = [];
-        this.isPressed = false;
+        this._isPressed = false;
         this.lastSelected = null;
         this.xStart;
         this.yStart;
@@ -523,7 +670,6 @@ class Layout{
         this.ctx.strokeStyle = MAIN_COLOR;
         this.ctx.fillStyle = BACK_COLOR;
         this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
-        
     }
 
     checkPoint(xAbs, yAbs){
@@ -531,13 +677,12 @@ class Layout{
         let update = false;
 
         if (this.lastSelected){
-            this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this.isPressed)
+            this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
 
             if (this.lastSelected.selected){
 
                 update = this.lastSelected.update;
                 this.lastSelected.update = false;
-
 
             } else{ 
                 update = this._checkElements(xAbs, yAbs);            
@@ -555,7 +700,7 @@ class Layout{
         let update = false;
         for (let element of this.elements){
             
-            element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this.isPressed);         
+            element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed);         
             update = update | element.update;
             element.update = false;
             if (element.selected) this.lastSelected = element;
@@ -569,8 +714,20 @@ class Layout{
         if (this.lastSelected) this.lastSelected.draw(this.ctx);
     }
 
+    addElement(element){
+        switch(element){
+            case 'Resistor':
+                this.elements.push(new Resistor(5,5,0, this.ctx))
+            break;
+            case 'Key':
+                this.elements.push(new Key(5,5,0, this.ctx))
+            break;
+            case 'Lamp':
+                this.elements.push(new Lamp(5,5,0, this.ctx))
+            break;
+        }
+    }
 }
-
 
 
 function canvasMove(e){
@@ -582,12 +739,12 @@ function canvasMove(e){
 
 
 function canvasRelease(e){
-    layout.isPressed = false;
-    layout.lastSelected.stopDrag();
+    layout._isPressed = false;
+    if (layout.lastSelected) layout.lastSelected.stopDrag();
 }
 
 function canvasClick(e){
-    layout.isPressed = true;
+    layout._isPressed = true;
     layout.xStart = e.pageX - layout.canvas.offsetLeft;
     layout.yStart = e.pageY - layout.canvas.offsetTop;
 }
