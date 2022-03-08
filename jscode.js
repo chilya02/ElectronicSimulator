@@ -1,8 +1,8 @@
-const ELEMENT_LENGTH = 20;
+const ELEMENT_LENGTH = 10;
 const DEFAULT_IMPEDANCE = 1;
 const LAYOUT_HEIGHT = 50;
 const LAYOUT_WIDTH = 100;
-const SCALE = 8;
+const SCALE = 16;
 
 //colors:
 
@@ -13,18 +13,18 @@ const BACK_COLOR = '#000000'
 
 //Constants for Resistor params
 
-const mainResW = 10;
-const mainResH = 4;
+const mainResW = 5;
+const mainResH = 2;
 const wireResLength = (ELEMENT_LENGTH - mainResW) / 2;
 
 //Constants for Key params
 
-const mainKeyLength = 6;
+const mainKeyLength = 3;
 const wireKeyLength = (ELEMENT_LENGTH - mainKeyLength) / 2;
 
 //Constants for Lamp params
 
-const mainLampR = 3.4;
+const mainLampR = 1.7;
 const wireLampLength = ELEMENT_LENGTH / 2 - mainLampR;
 
 
@@ -104,6 +104,7 @@ class Element {
         this.lastSelected = null;
         this.selected = false;
         this.update = false;
+        this.isMoving = false;
         this.draw(ctx);
     };
 
@@ -136,6 +137,7 @@ class Element {
     stopDrag(){
         this.xStart = this.x1;
         this.yStart = this.y1;
+        this.isMoving = false;
     }
 
     isInArea(x, y){
@@ -170,19 +172,20 @@ class Element {
     }
 
     checkPoint(xAbs, yAbs, xStart, yStart, isPressed){
+        if (!this.isMoving){
+            if (this.lastSelected){
 
-        if (this.lastSelected){
+                this.lastSelected.checkPoint(xAbs, yAbs, isPressed);
 
-            this.lastSelected.checkPoint(xAbs, yAbs, isPressed);
-
-            if (this.lastSelected.selected){
-                this.update = this.update | this.lastSelected.update;
-                this.lastSelected.update = false;
+                if (this.lastSelected.selected){
+                    this.update = this.update | this.lastSelected.update;
+                    this.lastSelected.update = false;
+                } else{
+                    this._checkNodes(xAbs, yAbs, isPressed);
+                }
             } else{
                 this._checkNodes(xAbs, yAbs, isPressed);
             }
-        } else{
-            this._checkNodes(xAbs, yAbs, isPressed);
         }
 
         let x = Math.round((xAbs)/SCALE);
@@ -392,6 +395,7 @@ class Element {
         this._calcCoordinates();
         this._calcPath();
         this.update = true;
+        if ((dx+dy)) this.isMoving = true;
     }
 }
 
@@ -466,13 +470,13 @@ class Resistor extends Element {
         switch (this._orientation % 180){
 
             case 0:
-                inBody = Math.abs(x - this.centerX) < (mainResW / 2);
-                inBody = inBody & Math.abs(y - this.centerY) < (mainResH / 2);
+                inBody = Math.abs(x - this.centerX) <= (mainResW / 2);
+                inBody = inBody & Math.abs(y - this.centerY) <= (mainResH / 2);
             break;
 
             case 90:
-                inBody = Math.abs(x - this.centerX) < (mainResH / 2);
-                inBody = inBody & Math.abs(y - this.centerY) < (mainResW / 2);
+                inBody = Math.abs(x - this.centerX) <= (mainResH / 2);
+                inBody = inBody & Math.abs(y - this.centerY) <= (mainResW / 2);
             break;
         }
 
@@ -663,13 +667,29 @@ class Layout{
         this.lastSelected = null;
         this.xStart;
         this.yStart;
-
         this.canvas = document.getElementById('layout');
+        this.calcSize();
+        this.ctxSetup();
+        this.invalidate();
+    }
+
+    changeSize(){
+        this.calcSize();
+        this.ctxSetup();
+        this.invalidate();
+    }
+
+    calcSize(){
+        this.canvas.width = document.body.clientWidth;
+        this.canvas.height = document.body.clientHeight;
+        this.ctx = this.canvas.getContext('2d');
+    }
+
+    ctxSetup(){
         this.ctx = this.canvas.getContext('2d');
         this.ctx.lineWidth = 4;
         this.ctx.strokeStyle = MAIN_COLOR;
         this.ctx.fillStyle = BACK_COLOR;
-        this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
     }
 
     checkPoint(xAbs, yAbs){
@@ -727,6 +747,22 @@ class Layout{
             break;
         }
     }
+
+    mouseClick(x, y){
+        if (!this.lastSelected) return;
+
+        if (this.lastSelected.selected){
+            this._isPressed = true;
+            this.xStart = x - this.canvas.offsetLeft;
+            this.yStart = y - this.canvas.offsetTop;
+        }
+    }
+
+    mouseRelease(){
+        this._isPressed = false;
+        if (this.lastSelected) this.lastSelected.stopDrag();
+    }
+
 }
 
 
@@ -739,14 +775,15 @@ function canvasMove(e){
 
 
 function canvasRelease(e){
-    layout._isPressed = false;
-    if (layout.lastSelected) layout.lastSelected.stopDrag();
+    layout.mouseRelease();
 }
 
 function canvasClick(e){
-    layout._isPressed = true;
-    layout.xStart = e.pageX - layout.canvas.offsetLeft;
-    layout.yStart = e.pageY - layout.canvas.offsetTop;
+    layout.mouseClick(e.pageX, e.pageY)
+}
+
+function canvasResize(e){
+    layout.changeSize();
 }
 
 
@@ -754,4 +791,8 @@ let layout = new Layout();
 
 layout.canvas.onmousemove = canvasMove;
 layout.canvas.onmousedown = canvasClick;  
-layout.canvas.onmouseup = canvasRelease; 
+layout.canvas.onmouseup = canvasRelease;
+layout.canvas.onresize = canvasResize;
+layout.canvas.onmouseout = canvasRelease;
+layout.canvas.onwheel
+window.onresize = canvasResize;
