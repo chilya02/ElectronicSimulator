@@ -27,6 +27,19 @@ const wireKeyLength = (ELEMENT_LENGTH - mainKeyLength) / 2;
 const mainLampR = 1.7;
 const wireLampLength = ELEMENT_LENGTH / 2 - mainLampR;
 
+CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    this.beginPath();
+    this.moveTo(x+r, y);
+    this.arcTo(x+w, y,   x+w, y+h, r);
+    this.arcTo(x+w, y+h, x,   y+h, r);
+    this.arcTo(x,   y+h, x,   y,   r);
+    this.arcTo(x,   y,   x+w, y,   r);
+    this.closePath();
+    return this;
+  }
+
 
 class Node {
 
@@ -56,6 +69,7 @@ class Node {
     }
 
     isInArea(x, y){
+        
         return Math.abs(x - this.x) <= 5/SCALE & Math.abs(y - this.y) <= 5/SCALE
     }
 
@@ -84,43 +98,26 @@ class Node {
 }
 
 
-class Element {
+class Element{
 
-    constructor(x, y, orientation, ctx) {
-
+    constructor(x, y){
         this.x1 = x;
         this.y1 = y;
 
         this.xStart = this.x1;
         this.yStart = this.y1;
-        
+
         this._node1 = new Node();
         this._node2 = new Node();
-
-        this._orientation = orientation;
-        this._calcCoordinates();
-        this._calcPath();
 
         this.lastSelected = null;
         this.selected = false;
         this.update = false;
         this.isMoving = false;
-        this.draw(ctx);
-    };
-
-    set _orientation(value){
-        while (value < 0){
-            value += 360;
-        }
-        if (value % 90 != 0){
-            console.log('Неправльный угол элемента')
-            return
-        } 
-        this.__orientation = value % 360;
     }
 
-    get _orientation(){
-        return this.__orientation
+    get length(){
+        return Math.sqrt((this.x1 - this.x2) ** 2 + (this.y1 - this.y2) ** 2);
     }
 
     set selected(value){
@@ -140,37 +137,6 @@ class Element {
         this.isMoving = false;
     }
 
-    isInArea(x, y){
-
-        let inNode = this._node1.isInArea(x, y) | this._node2.isInArea(x, y);
-        
-        switch(this._orientation){
-
-            case 0:
-                return x > this.x1 & x < this.x2 & y == this.y1 & y == this.y2 | inNode;
-
-            case 90:
-                return y < this.y1 & y > this.y2 & x == this.x1 & x == this.x2 | inNode;
-            
-            case 180:
-                return x < this.x1 & x > this.x2 & y == this.y1 & y == this.y2 | inNode;
-
-            case 270:
-                return y > this.y1 & y < this.y2 & x == this.x1 & x == this.x2 | inNode;
-            
-        }
-    }
-
-    _checkNodes(xAbs, yAbs, isPressed){
-        for (let node of [this._node1, this._node2]){
-            node.checkPoint(xAbs, yAbs, isPressed);
-            if (node.selected) this.lastSelected = node;
-
-            this.update = this.update | node.update;
-            node.update = false;
-        }
-    }
-
     checkPoint(xAbs, yAbs, xStart, yStart, isPressed){
         if (!this.isMoving){
             if (this.lastSelected){
@@ -188,10 +154,7 @@ class Element {
             }
         }
 
-        let x = Math.round((xAbs)/SCALE);
-        let y = Math.round((yAbs)/SCALE);
-
-        if (this.isInArea(x, y)){
+        if (this.isInArea(xAbs, yAbs)){
             if (!this.selected){this.selected = true}
         } else {
 
@@ -202,7 +165,10 @@ class Element {
 
             let dx = Math.round((xAbs - xStart)/SCALE);
             let dy = Math.round((yAbs - yStart)/SCALE);
-
+            
+            let x = Math.round((xAbs)/SCALE);
+            let y = Math.round((yAbs)/SCALE);
+            
             if (this._node1.selected | this._node2.selected){
                 this.rotate(x, y)
             }
@@ -211,6 +177,97 @@ class Element {
                     this.move(dx, dy)
                 }
             }
+        }
+    }
+
+    _checkNodes(xAbs, yAbs, isPressed){
+        for (let node of [this._node1, this._node2]){
+            node.checkPoint(xAbs, yAbs, isPressed);
+            if (node.selected) this.lastSelected = node;
+
+            this.update = this.update | node.update;
+            node.update = false;
+        }
+    }
+
+    draw(ctx){
+        let element = new Path2D(this._path);
+        if (this.selected){
+            ctx.strokeStyle = SELECTED_COLOR;
+            ctx.stroke(element);
+            ctx.strokeStyle = MAIN_COLOR;
+        } else {ctx.stroke(element)}
+
+        this._node1.draw(ctx);
+        this._node2.draw(ctx);
+
+        //console.log('DRAW')
+    }
+    
+
+    move(dx, dy){
+        this.x1 = this.xStart + dx;
+        this.y1 = this.yStart + dy;
+        this._calcPath();
+        this.update = true;
+        if ((dx+dy)) this.isMoving = true;
+    }
+
+}
+
+class ActiveElement extends Element {
+// Element + orientation, calculating coordinates
+    constructor(x, y, orientation, ctx) {
+        super(x, y);
+
+        this._orientation = orientation;
+        this._calcCoordinates();
+        this._calcPath();
+
+        this.draw(ctx);
+    };
+
+    set _orientation(value){
+        while (value < 0){
+            value += 360;
+        }
+        if (value % 90 != 0){
+            console.log('Неправльный угол элемента')
+            return
+        } 
+        this.__orientation = value % 360;
+    }
+
+    get _orientation(){
+        return this.__orientation
+    }
+
+    move(dx, dy){
+        super.move(dx, dy);
+        this._calcCoordinates();
+    }
+
+    isInArea(xAbs, yAbs){
+
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
+        let inNode = this._node1.isInArea(x, y) | this._node2.isInArea(x, y);
+        
+        switch(this._orientation){
+
+            case 0:
+                return x > this.x1 & x < this.x2 & y == this.y1 & y == this.y2 | inNode;
+
+            case 90:
+                return y < this.y1 & y > this.y2 & x == this.x1 & x == this.x2 | inNode;
+            
+            case 180:
+                return x < this.x1 & x > this.x2 & y == this.y1 & y == this.y2 | inNode;
+
+            case 270:
+                return y > this.y1 & y < this.y2 & x == this.x1 & x == this.x2 | inNode;
+            
         }
     }
 
@@ -333,20 +390,6 @@ class Element {
         }
     }
 
-    draw(ctx){
-        let element = new Path2D(this._path);
-        if (this.selected){
-            ctx.strokeStyle = SELECTED_COLOR;
-            ctx.stroke(element);
-            ctx.strokeStyle = MAIN_COLOR;
-        } else {ctx.stroke(element)}
-
-        this._node1.draw(ctx);
-        this._node2.draw(ctx);
-
-        //console.log('DRAW')
-    }
-
     _calcCoordinates(){  
 
         let x = this.x1;
@@ -388,19 +431,10 @@ class Element {
 
         //console.log(`x1: ${this.x1}, y1: ${this.y1}, x2: ${this.x2}, y2: ${this.y2}`)
     }
-
-    move(dx, dy){
-        this.x1 = this.xStart + dx;
-        this.y1 = this.yStart + dy;
-        this._calcCoordinates();
-        this._calcPath();
-        this.update = true;
-        if ((dx+dy)) this.isMoving = true;
-    }
 }
 
 
-class Resistor extends Element {
+class Resistor extends ActiveElement {
 
     constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
 
@@ -463,7 +497,10 @@ class Resistor extends Element {
         }
     }
 
-    isInArea(x, y){
+    isInArea(xAbs, yAbs){
+
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
 
         let inBody;
 
@@ -480,12 +517,12 @@ class Resistor extends Element {
             break;
         }
 
-        return super.isInArea(x, y) | inBody;
+        return super.isInArea(xAbs, yAbs) | inBody;
     }
 }
 
 
-class Key extends Element {
+class Key extends ActiveElement {
 
     constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
 
@@ -532,7 +569,10 @@ class Key extends Element {
         }
     }
 
-    isInArea(x, y){
+    isInArea(xAbs, yAbs){
+
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
 
         let inBody;
 
@@ -563,12 +603,12 @@ class Key extends Element {
             break;
         }
 
-        return super.isInArea(x, y) | inBody;
+        return super.isInArea(xAbs, yAbs) | inBody;
     }
 }
 
 
-class Lamp extends Element {
+class Lamp extends ActiveElement {
 
     constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
 
@@ -643,18 +683,109 @@ class Lamp extends Element {
         }
     }
 
-    isInArea(x, y){
+    isInArea(xAbs, yAbs){
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
         let distanceFromCenter = Math.sqrt(Math.pow(this.centerX - x, 2) + Math.pow(this.centerY - y, 2));
 
-        return super.isInArea(x, y) | distanceFromCenter < mainLampR;
+        return super.isInArea(xAbs, yAbs) | distanceFromCenter < mainLampR;
     }
 }
 
 
-class Wire extends Element {
+class Wire extends Element{
 
-    constructor() {
-        super();
+    constructor(x1, y1, x2, y2, ctx) {
+        super(x1, y1, ctx);
+        this.x2 = x2;
+        this.y2 = y2;
+
+        this.selected = true;
+        this._node2.selected = true;
+        this.lastSelected = this._node2;
+
+        this.x2Start = this.x2;
+        this.y2Start = this.y2;
+
+        this._calcPath();
+        this.draw(ctx);
+    }
+
+    set selected(value){
+        super.selected = value;
+
+        this.x2Start = this.x2;
+        this.y2Start = this.y2;
+    }
+
+    get selected(){
+        return super.selected;
+    }
+
+    rotate(x, y){
+
+        if (this._node1.selected){
+            this.x1 = x;
+            this.y1 = y;
+            this.update = true;
+        }
+
+        if (this._node2.selected){
+            this.x2 = x;
+            this.y2 = y;
+            this.update = true;
+        }
+
+        if (this.update) {
+            this._calcPath();
+        }
+    }
+
+    _calcPath(){
+        this._path = `M${this.x1*SCALE} ${this.y1*SCALE}
+        L${this.x2*SCALE} ${this.y2*SCALE}`
+
+        this._node1.setPoint(this.x1, this.y1);
+        this._node2.setPoint(this.x2, this.y2);
+    }
+    
+    isInArea(xAbs, yAbs){
+
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
+        let inNode = this._node1.isInArea(x, y) | this._node2.isInArea(x, y);
+
+        if (this.y1 == this.y2){
+            return inNode | Math.abs(yAbs - this.y1*SCALE) <= 5 &
+            xAbs >= Math.min(this.x1*SCALE, this.x2*SCALE) &
+            xAbs <= Math.max(this.x1*SCALE, this.x2*SCALE);
+        }
+
+        if (this.x1 == this.x2){
+            return inNode | Math.abs(xAbs - this.x1*SCALE) <= 5 &
+            yAbs >= Math.min(this.y1*SCALE, this.y2*SCALE) &
+            yAbs <= Math.max(this.y1*SCALE, this.y2*SCALE);
+        }
+
+        let equation = (xAbs - this.x1*SCALE) * (this.y2*SCALE - this.y1*SCALE)/ (this.x2*SCALE-this.x1*SCALE) + this.y1*SCALE;
+            
+        return yAbs <= Math.max(this.y1*SCALE, this.y2*SCALE) &
+            yAbs >= Math.min(this.y1*SCALE, this.y2*SCALE) & 
+            xAbs >= Math.min(this.x1*SCALE, this.x2*SCALE) &
+            xAbs <= Math.max(this.x1*SCALE, this.x2*SCALE) &
+            Math.abs(equation - yAbs) <= 5 | inNode;
+    }
+
+    move(dx, dy){
+        this.x1 = this.xStart + dx;
+        this.y1 = this.yStart + dy;
+        this.x2 = this.x2Start + dx;
+        this.y2 = this.y2Start + dy;
+        this._calcPath();
+        this.update = true;
+        if ((dx+dy)) this.isMoving = true;
     }
 }
 
@@ -663,8 +794,11 @@ class Layout{
 
     constructor(){
         this.elements = [];
+        this.devices = [];
         this._isPressed = false;
+        this._isPressedRight = false;
         this.lastSelected = null;
+        this.newWire = null;
         this.xStart;
         this.yStart;
         this.canvas = document.getElementById('layout');
@@ -696,24 +830,32 @@ class Layout{
         
         let update = false;
 
-        if (this.lastSelected){
-            this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
+        if (this._isPressedRight){
+            let x = Math.round((xAbs)/SCALE);
+            let y = Math.round((yAbs)/SCALE);
+            this.newWire.rotate(x, y);
+            update = this.newWire.update;
 
-            if (this.lastSelected.selected){
-
-                update = this.lastSelected.update;
-                this.lastSelected.update = false;
-
-            } else{ 
-                update = this._checkElements(xAbs, yAbs);            
-            }
         } else {
-            update = this._checkElements(xAbs, yAbs);
-        }
+            if (this.lastSelected){
+            
+                this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
 
+                if (this.lastSelected.selected){
+
+                    update = this.lastSelected.update;
+                    this.lastSelected.update = false;
+
+                } else{ 
+                    update = this._checkElements(xAbs, yAbs);            
+                }
+            } else {
+                update = this._checkElements(xAbs, yAbs);
+            }
+        }
         
         if (update)
-            this.invalidate(this.elements, this.ctx); 
+            this.invalidate(); 
     }
 
     _checkElements (xAbs, yAbs){
@@ -730,8 +872,10 @@ class Layout{
     
     invalidate(){
         this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
+        
         for (let element of this.elements) element.draw(this.ctx);
         if (this.lastSelected) this.lastSelected.draw(this.ctx);
+        if (this.newWire) this.newWire.draw(this.ctx)
     }
 
     addElement(element){
@@ -745,22 +889,63 @@ class Layout{
             case 'Lamp':
                 this.elements.push(new Lamp(5,5,0, this.ctx))
             break;
+            case 'Device':
+                    this.devices.push(new Device(this.ctx, 5, 5));
+            break;
         }
     }
 
-    mouseClick(x, y){
+    mouseClick(xAbs, yAbs){
         if (!this.lastSelected) return;
 
         if (this.lastSelected.selected){
             this._isPressed = true;
-            this.xStart = x - this.canvas.offsetLeft;
-            this.yStart = y - this.canvas.offsetTop;
+            this.xStart = xAbs - this.canvas.offsetLeft;
+            this.yStart = yAbs - this.canvas.offsetTop;
         }
+    }
+
+    rightClick(xAbs, yAbs){
+        this.xStart = xAbs - this.canvas.offsetLeft;
+        this.yStart = yAbs - this.canvas.offsetTop;
+
+        this._isPressedRight = true;
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+        this.newWire = new Wire(x, y, x, y, this.ctx);
+    }
+
+    rightRelease(xAbs, yAbs){
+        this._isPressedRight = false;
+        if (this.newWire.length > 0) this.elements.push(this.newWire);
+        this.newWire = null;
+        if (this.lastSelected){
+            this.lastSelected.selected = false;
+            this.lastSelected = this.newWire;
+            this.checkPoint(xAbs, yAbs);
+        }
+        this.invalidate();
     }
 
     mouseRelease(){
         this._isPressed = false;
         if (this.lastSelected) this.lastSelected.stopDrag();
+    }
+
+}
+
+
+class Device{
+    constructor(ctx, x, y){
+        this.x = x;
+        this.y = y;
+        this.draw(ctx);
+    }
+
+    draw(ctx){
+        this.path;
+        ctx.roundRect(this.x, this.y, 250, 120, 20);
+        ctx.stroke();
     }
 
 }
@@ -775,24 +960,42 @@ function canvasMove(e){
 
 
 function canvasRelease(e){
-    layout.mouseRelease();
+    switch (e.which){
+        case 1:
+            layout.mouseRelease();
+        break;
+        case 3:
+            layout.rightRelease(e.pageX, e.pageY);
+        break;
+    }
+        
 }
 
 function canvasClick(e){
-    layout.mouseClick(e.pageX, e.pageY)
+    switch (e.which){
+        case 1:
+            layout.mouseClick(e.pageX, e.pageY);
+        break;
+        case 3:
+            layout.rightClick(e.pageX, e.pageY);
+        break;
+    }
 }
 
 function canvasResize(e){
     layout.changeSize();
 }
 
+function deleteContextMenu(e){
+    e.preventDefault();
+}
 
 let layout = new Layout();
-
+layout.addElement('Device');
+layout.canvas.oncontextmenu = deleteContextMenu;
 layout.canvas.onmousemove = canvasMove;
 layout.canvas.onmousedown = canvasClick;  
 layout.canvas.onmouseup = canvasRelease;
 layout.canvas.onresize = canvasResize;
 layout.canvas.onmouseout = canvasRelease;
-layout.canvas.onwheel
 window.onresize = canvasResize;
