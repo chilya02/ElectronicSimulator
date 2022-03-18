@@ -1,7 +1,5 @@
 const ELEMENT_LENGTH = 10;
 const DEFAULT_IMPEDANCE = 1;
-const LAYOUT_HEIGHT = 50;
-const LAYOUT_WIDTH = 100;
 const SCALE = 16;
 
 //colors:
@@ -27,18 +25,12 @@ const wireKeyLength = (ELEMENT_LENGTH - mainKeyLength) / 2;
 const mainLampR = 1.7;
 const wireLampLength = ELEMENT_LENGTH / 2 - mainLampR;
 
-CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-    if (w < 2 * r) r = w / 2;
-    if (h < 2 * r) r = h / 2;
-    this.beginPath();
-    this.moveTo(x+r, y);
-    this.arcTo(x+w, y,   x+w, y+h, r);
-    this.arcTo(x+w, y+h, x,   y+h, r);
-    this.arcTo(x,   y+h, x,   y,   r);
-    this.arcTo(x,   y,   x+w, y,   r);
-    this.closePath();
-    return this;
-  }
+//Constants for Voltage Source params
+
+const mainVoltSourceL = 0.75;
+const minMainVoltSourceL = 2;
+const plusMainVoltSourceL = 4;
+const wireVoltSourceL = (ELEMENT_LENGTH - mainVoltSourceL) / 2;
 
 
 class Node {
@@ -99,6 +91,8 @@ class Node {
 
 
 class Element{
+
+    // Abstract class for all elements on the layout
 
     constructor(x, y){
         this.x1 = x;
@@ -200,8 +194,6 @@ class Element{
 
         this._node1.draw(ctx);
         this._node2.draw(ctx);
-
-        //console.log('DRAW')
     }
     
 
@@ -215,8 +207,13 @@ class Element{
 
 }
 
+
 class ActiveElement extends Element {
-// Element + orientation, calculating coordinates
+
+    // Abstract class for active elements 
+    // Includes: 
+    // Element + orientation + calculating coordinates
+    
     constructor(x, y, orientation, ctx) {
         super(x, y);
 
@@ -428,8 +425,6 @@ class ActiveElement extends Element {
 
         this._node1.setPoint(this.x1, this.y1);
         this._node2.setPoint(this.x2, this.y2);
-
-        //console.log(`x1: ${this.x1}, y1: ${this.y1}, x2: ${this.x2}, y2: ${this.y2}`)
     }
 }
 
@@ -694,6 +689,184 @@ class Lamp extends ActiveElement {
 }
 
 
+class CurrentSource extends ActiveElement{
+
+    constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+
+    _calcPath(){
+
+        //SVG for drawing with params
+
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
+
+            case 0:
+                this._path = `M${x*SCALE} ${y*SCALE}
+                h ${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
+                m ${mainLampR*SCALE*2} 0
+                h ${wireLampLength*SCALE}
+                m -${(mainLampR*1.5+wireLampLength)*SCALE} 0
+                h ${mainLampR*SCALE}
+                m ${-0.35*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
+                l ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                m ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                l ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
+                `;
+            break;
+
+            case 90:
+                this._path = `M${x*SCALE} ${y*SCALE}
+                v -${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
+                m 0 -${mainLampR*SCALE*2}
+                v -${wireLampLength*SCALE}
+                m 0 ${(mainLampR*1.5+wireLampLength)*SCALE}
+                v -${mainLampR*SCALE}
+                m ${-0.3*mainLampR*SCALE} ${0.35*mainLampR*SCALE} 
+                l ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
+                m ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                l ${-0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}`;
+            break;
+
+            case 180:
+                this._path = `M${x*SCALE} ${y*SCALE}
+                h -${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
+                m -${mainLampR*SCALE*2} 0
+                h -${wireLampLength*SCALE}
+                m ${(mainLampR*1.5+wireLampLength)*SCALE} 0
+                h -${mainLampR*SCALE}
+                m ${0.35*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
+                l ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                m ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                l ${-0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}`
+            break;
+
+            case 270:
+                this._path = `M${x*SCALE} ${y*SCALE}
+                v ${wireLampLength*SCALE} 
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
+                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
+                m 0 ${mainLampR*SCALE*2}
+                v ${wireLampLength*SCALE}
+                m 0 ${-(mainLampR*1.5+wireLampLength)*SCALE}
+                v ${mainLampR*SCALE}
+                m ${-0.3*mainLampR*SCALE} ${-0.35*mainLampR*SCALE} 
+                l ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
+                m ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
+                l ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}`;
+            break;
+        }
+    }
+
+    isInArea(xAbs, yAbs){
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
+        let distanceFromCenter = Math.sqrt(Math.pow(this.centerX - x, 2) + Math.pow(this.centerY - y, 2));
+
+        return super.isInArea(xAbs, yAbs) | distanceFromCenter < mainLampR;
+    }
+}
+
+
+class VoltageSource extends ActiveElement{
+
+    constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
+
+    _calcPath(){
+        
+        //SVG for drawing with orientation
+
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
+
+            case 0:
+                this._path = `M ${x*SCALE} ${y*SCALE} 
+                h ${wireVoltSourceL*SCALE} 
+                m 0 ${minMainVoltSourceL/2*SCALE} 
+                v ${-minMainVoltSourceL*SCALE}
+                m 0 ${minMainVoltSourceL/2*SCALE}
+                m ${mainVoltSourceL*SCALE} 0
+                m 0 ${plusMainVoltSourceL/2*SCALE} 
+                v ${-plusMainVoltSourceL*SCALE}
+                m 0 ${plusMainVoltSourceL/2*SCALE}
+                h ${wireVoltSourceL*SCALE}`;
+            break;
+
+            case 90:
+                this._path = `M ${x*SCALE} ${y*SCALE} 
+                v -${wireVoltSourceL*SCALE} 
+                m ${minMainVoltSourceL/2*SCALE} 0
+                h ${-minMainVoltSourceL*SCALE}
+                m ${minMainVoltSourceL/2*SCALE} 0
+                m 0 ${-mainVoltSourceL*SCALE}
+                m ${plusMainVoltSourceL/2*SCALE} 0
+                h ${-plusMainVoltSourceL*SCALE}
+                m ${plusMainVoltSourceL/2*SCALE} 0
+                v -${wireVoltSourceL*SCALE}`;
+            break;
+
+            case 180:
+                this._path = `M ${x*SCALE} ${y*SCALE} 
+                h ${-wireVoltSourceL*SCALE} 
+                m 0 ${minMainVoltSourceL/2*SCALE} 
+                v ${-minMainVoltSourceL*SCALE}
+                m 0 ${minMainVoltSourceL/2*SCALE}
+                m ${-mainVoltSourceL*SCALE} 0
+                m 0 ${plusMainVoltSourceL/2*SCALE} 
+                v ${-plusMainVoltSourceL*SCALE}
+                m 0 ${plusMainVoltSourceL/2*SCALE}
+                h -${wireVoltSourceL*SCALE}`;
+            break;
+
+            case 270:
+                this._path = `M ${x*SCALE} ${y*SCALE} 
+                v ${wireVoltSourceL*SCALE} 
+                m ${minMainVoltSourceL/2*SCALE} 0
+                h ${-minMainVoltSourceL*SCALE}
+                m ${minMainVoltSourceL/2*SCALE} 0
+                m 0 ${mainVoltSourceL*SCALE}
+                m ${plusMainVoltSourceL/2*SCALE} 0
+                h ${-plusMainVoltSourceL*SCALE}
+                m ${plusMainVoltSourceL/2*SCALE} 0
+                v ${wireVoltSourceL*SCALE}`;
+            break;
+        }
+    }
+
+    isInArea(xAbs, yAbs){
+
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
+        let inBody;
+
+        switch (this._orientation % 180){
+
+            case 0:
+                inBody = Math.abs(x - this.centerX) <= (mainVoltSourceL / 2);
+                inBody = inBody & Math.abs(y - this.centerY) <= (plusMainVoltSourceL / 2);
+            break;
+
+            case 90:
+                inBody = Math.abs(x - this.centerX) <= (plusMainVoltSourceL / 2);
+                inBody = inBody & Math.abs(y - this.centerY) <= (mainVoltSourceL / 2);
+            break;
+        }
+
+        return super.isInArea(xAbs, yAbs) | inBody;
+    }
+}
+
 class Wire extends Element{
 
     constructor(x1, y1, x2, y2, ctx) {
@@ -793,30 +966,55 @@ class Wire extends Element{
 class Layout{
 
     constructor(){
+
         this.elements = [];
         this.devices = [];
+
         this._isPressed = false;
         this._isPressedRight = false;
+
         this.lastSelected = null;
+        this.lastSelectedNew = null;
         this.newWire = null;
+
         this.xStart;
         this.yStart;
+
         this.canvas = document.getElementById('layout');
+
+        //this.currentSource = new CurrentSource(5, 5, 250, 150, this.ctx);
+
         this.calcSize();
         this.ctxSetup();
+        this._createNewElements();
+
         this.invalidate();
     }
 
     changeSize(){
         this.calcSize();
         this.ctxSetup();
+        this._createNewElements();
         this.invalidate();
     }
 
     calcSize(){
+        this.height = document.body.clientHeight;
+        this.width = document.body.clientWidth;
+
         this.canvas.width = document.body.clientWidth;
         this.canvas.height = document.body.clientHeight;
-        this.ctx = this.canvas.getContext('2d');
+
+        this.downLineY = Math.round(this.height - 6 *SCALE)
+
+        this.newKeyRespX = Math.round(this.width / SCALE / 2 - ELEMENT_LENGTH / 2);
+        this.newKeyRespY = Math.round(this.height / SCALE - 3);
+
+        this.newResistorRespX = Math.round(this.width / SCALE / 2 - ELEMENT_LENGTH * 3 / 2 - 5);
+        this.newResistorRespY = Math.round(this.height / SCALE - 3);
+
+        this.newLampRespX = Math.round(this.width / SCALE / 2 + ELEMENT_LENGTH / 2 + 5);
+        this.newLampRespY = Math.round(this.height / SCALE - 3);
     }
 
     ctxSetup(){
@@ -834,23 +1032,19 @@ class Layout{
             let x = Math.round((xAbs)/SCALE);
             let y = Math.round((yAbs)/SCALE);
             this.newWire.rotate(x, y);
-            update = this.newWire.update;
+            update = update | this.newWire.update;
 
         } else {
-            if (this.lastSelected){
-            
-                this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
-
-                if (this.lastSelected.selected){
-
-                    update = this.lastSelected.update;
-                    this.lastSelected.update = false;
-
-                } else{ 
-                    update = this._checkElements(xAbs, yAbs);            
-                }
+            if (this.lastSelectedNew){
+                update = update | this._checkLastSelectedNew(xAbs, yAbs);
             } else {
-                update = this._checkElements(xAbs, yAbs);
+                update = update | this._checkNewElements(xAbs, yAbs);
+                   
+                if (this.lastSelected){
+                    update = update | this._checkLastSelected(xAbs, yAbs);
+                } else {
+                    update = update | this._checkElements(xAbs, yAbs);
+                }
             }
         }
         
@@ -858,14 +1052,70 @@ class Layout{
             this.invalidate(); 
     }
 
-    _checkElements (xAbs, yAbs){
+    _checkLastSelectedNew(xAbs, yAbs){
+
         let update = false;
+
+        this.lastSelectedNew.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed);
+
+        if (this.lastSelectedNew.selected){
+
+            update = update | this.lastSelectedNew.update;
+            this.lastSelectedNew.update = false;
+
+        } else{ 
+            update = update | this._checkNewElements(xAbs, yAbs);            
+        }
+        return update;
+    }
+
+    _checkLastSelected(xAbs, yAbs){
+
+        let update = false;
+
+        this.lastSelected.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed);
+
+        if (this.lastSelected.selected){
+
+            update = update | this.lastSelected.update;
+            this.lastSelected.update = false;
+
+        } else{ 
+            update = update | this._checkElements(xAbs, yAbs);            
+        }
+        return update;
+    }
+
+    _checkNewElements(xAbs, yAbs){
+
+        let update = false;
+        let isAnySelected = false;
+
+        for (let element of [this.newKey, this.newResistor, this.newLamp]){
+            element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
+            isAnySelected = isAnySelected | element.selected;
+            update = update | element.update;
+            element.update = false;
+            if (element.selected) this.lastSelectedNew = element;
+        }
+        if (!isAnySelected) this.lastSelectedNew = null;
+
+        return update;
+    }
+
+    _checkElements (xAbs, yAbs){
+
+        let update = false;
+        
         for (let element of this.elements){
             
             element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed);         
             update = update | element.update;
             element.update = false;
-            if (element.selected) this.lastSelected = element;
+            if (element.selected) {
+                this.lastSelected = element;
+                break;
+            }
         }
         return update;
     }
@@ -873,35 +1123,34 @@ class Layout{
     invalidate(){
         this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
         
-        for (let element of this.elements) element.draw(this.ctx);
-        if (this.lastSelected) this.lastSelected.draw(this.ctx);
-        if (this.newWire) this.newWire.draw(this.ctx)
-    }
-
-    addElement(element){
-        switch(element){
-            case 'Resistor':
-                this.elements.push(new Resistor(5,5,0, this.ctx))
-            break;
-            case 'Key':
-                this.elements.push(new Key(5,5,0, this.ctx))
-            break;
-            case 'Lamp':
-                this.elements.push(new Lamp(5,5,0, this.ctx))
-            break;
-            case 'Device':
-                    this.devices.push(new Device(this.ctx, 5, 5));
-            break;
+        for (let element of this.elements){
+            element.draw(this.ctx);
         }
+
+        if (this.lastSelected) this.lastSelected.draw(this.ctx);
+        if (this.newWire) this.newWire.draw(this.ctx);
+
+        this.ctx.fillRect(0,this.downLineY, this.width, this.height - this.downLineY);
+        for (let element of [this.newKey, this.newResistor, this.newLamp]){
+            element.draw(this.ctx);
+        }
+        this.ctx.stroke(new Path2D(`M 0 ${this.downLineY} l ${this.width} 0`));
     }
 
     mouseClick(xAbs, yAbs){
-        if (!this.lastSelected) return;
-
-        if (this.lastSelected.selected){
-            this._isPressed = true;
-            this.xStart = xAbs - this.canvas.offsetLeft;
-            this.yStart = yAbs - this.canvas.offsetTop;
+        if (this.lastSelected){
+            if (this.lastSelected.selected){
+                this._isPressed = true;
+                this.xStart = xAbs - this.canvas.offsetLeft;
+                this.yStart = yAbs - this.canvas.offsetTop;
+            }
+        }
+        if (this.lastSelectedNew){
+            if (this.lastSelectedNew.selected){
+                this._isPressed = true;
+                this.xStart = xAbs - this.canvas.offsetLeft;
+                this.yStart = yAbs - this.canvas.offsetTop;
+            }
         }
     }
 
@@ -917,37 +1166,56 @@ class Layout{
 
     rightRelease(xAbs, yAbs){
         this._isPressedRight = false;
-        if (this.newWire.length > 0) this.elements.push(this.newWire);
-        this.newWire = null;
-        if (this.lastSelected){
-            this.lastSelected.selected = false;
+        if (this.newWire.length > 0){
+            this.elements.push(this.newWire);
+            if (this.lastSelected){
+                this.lastSelected.selected = false;
+            }
             this.lastSelected = this.newWire;
             this.checkPoint(xAbs, yAbs);
         }
+        this.newWire = null;
         this.invalidate();
     }
 
     mouseRelease(){
         this._isPressed = false;
         if (this.lastSelected) this.lastSelected.stopDrag();
+        if (this.lastSelectedNew) this.lastSelectedNew.stopDrag();
+        this._checkNewElementsPosition();
     }
 
-}
-
-
-class Device{
-    constructor(ctx, x, y){
-        this.x = x;
-        this.y = y;
-        this.draw(ctx);
+    _checkNewElementsPosition(){
+        if (this.lastSelectedNew){
+            if (this.lastSelectedNew.y1 < this.downLineY/SCALE & this.lastSelectedNew.y2 < this.downLineY/SCALE){
+                this.elements.push(this.lastSelectedNew);
+                this.lastSelected = this.lastSelectedNew;
+                this.lastSelectedNew = null;
+            }
+            this._createNewElements();
+            this.invalidate();  
+        }
     }
 
-    draw(ctx){
-        this.path;
-        ctx.roundRect(this.x, this.y, 250, 120, 20);
-        ctx.stroke();
+    _createNewElements(){
+        this.newKey = new Key(this.newKeyRespX, this.newKeyRespY, 0, this.ctx);
+        this.newResistor = new Resistor(this.newResistorRespX, this.newResistorRespY, 0, this.ctx);
+        this.newLamp = new Lamp(this.newLampRespX, this.newLampRespY, 0, this.ctx);
     }
 
+    deleteItem(){
+        if (this.lastSelected){
+            if (this.lastSelected.selected){
+                for (let index = 0; index < this.elements.length; index++){
+                    if (this.elements[index].selected){
+                        this.elements.splice(index, 1)
+                        this.lastSelected = this.elements[this.elements.length - 1];
+                        this.invalidate();
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -971,6 +1239,7 @@ function canvasRelease(e){
         
 }
 
+
 function canvasClick(e){
     switch (e.which){
         case 1:
@@ -982,16 +1251,25 @@ function canvasClick(e){
     }
 }
 
+
 function canvasResize(e){
     layout.changeSize();
 }
+
 
 function deleteContextMenu(e){
     e.preventDefault();
 }
 
+
+function deleteItem(e){
+    if (e.code == 'Delete') {
+        layout.deleteItem(e.pageX, e.pageY);
+      }
+}
+
+
 let layout = new Layout();
-layout.addElement('Device');
 layout.canvas.oncontextmenu = deleteContextMenu;
 layout.canvas.onmousemove = canvasMove;
 layout.canvas.onmousedown = canvasClick;  
@@ -999,3 +1277,5 @@ layout.canvas.onmouseup = canvasRelease;
 layout.canvas.onresize = canvasResize;
 layout.canvas.onmouseout = canvasRelease;
 window.onresize = canvasResize;
+
+document.addEventListener('keyup', deleteItem);
