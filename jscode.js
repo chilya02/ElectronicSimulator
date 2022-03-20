@@ -13,17 +13,17 @@ const BACK_COLOR = '#000000'
 
 const mainResW = 5;
 const mainResH = 2;
-const wireResLength = (ELEMENT_LENGTH - mainResW) / 2;
+const wireResL = (ELEMENT_LENGTH - mainResW) / 2;
 
 //Constants for Key params
 
-const mainKeyLength = 3;
-const wireKeyLength = (ELEMENT_LENGTH - mainKeyLength) / 2;
+const mainKeyL = 3;
+const wireKeyL = (ELEMENT_LENGTH - mainKeyL) / 2;
 
-//Constants for Lamp params
+//Constants for Round elements params
 
-const mainLampR = 1.7;
-const wireLampLength = ELEMENT_LENGTH / 2 - mainLampR;
+const mainRoundR = 1.7;
+const wireRoundL = ELEMENT_LENGTH / 2 - mainRoundR;
 
 //Constants for Voltage Source params
 
@@ -90,7 +90,7 @@ class Node {
 }
 
 
-class Element{
+class BaseElement{
 
     // Abstract class for all elements on the layout
 
@@ -208,7 +208,7 @@ class Element{
 }
 
 
-class ActiveElement extends Element {
+class ActiveElement extends BaseElement {
 
     // Abstract class for active elements 
     // Includes: 
@@ -429,6 +429,68 @@ class ActiveElement extends Element {
 }
 
 
+class RoundElement extends ActiveElement{
+
+    constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+
+    _calcPath(){
+
+        //SVG for drawing with params
+
+        let x = this.x1;
+        let y = this.y1;
+
+        switch (this._orientation){
+
+            case 0:
+                this._path = `M${x * SCALE} ${y * SCALE}
+                h ${wireRoundL * SCALE} 
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 ${2 * mainRoundR * SCALE} 0
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 ${-2 * mainRoundR * SCALE} 0
+                m ${2 * mainRoundR * SCALE} 0
+                h ${wireRoundL * SCALE}`;
+            break;
+
+            case 90:
+                this._path = `M${x * SCALE} ${y * SCALE}
+                v ${-wireRoundL * SCALE} 
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 0 ${-2 * mainRoundR * SCALE}
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 0 ${2 *mainRoundR * SCALE}
+                m 0 ${-2 * mainRoundR * SCALE}
+                v ${-wireRoundL * SCALE}`;
+            break;
+
+            case 180:
+                this._path = `M${x * SCALE} ${y * SCALE}
+                h ${-wireRoundL * SCALE} 
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 -${2 * mainRoundR * SCALE} 0
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 ${2 * mainRoundR * SCALE} 0
+                m ${-2 * mainRoundR * SCALE} 0
+                h ${-wireRoundL * SCALE}`;
+            break;
+
+            case 270:
+                this._path = `M${x * SCALE} ${y * SCALE}
+                v ${wireRoundL * SCALE} 
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 0 ${2 * mainRoundR * SCALE}
+                a ${mainRoundR * SCALE} ${mainRoundR * SCALE} 0 1 1 0 ${-2 * mainRoundR * SCALE}
+                m 0 ${mainRoundR * SCALE * 2}
+                v ${wireRoundL * SCALE}`;
+            break;
+        }
+    }
+
+    isInArea(xAbs, yAbs){
+        let x = Math.round((xAbs)/SCALE);
+        let y = Math.round((yAbs)/SCALE);
+
+        let distanceFromCenter = Math.sqrt(Math.pow(this.centerX - x, 2) + Math.pow(this.centerY - y, 2));
+
+        return super.isInArea(xAbs, yAbs) | distanceFromCenter < mainRoundR;
+    }
+}
+
+
 class Resistor extends ActiveElement {
 
     constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
@@ -443,51 +505,51 @@ class Resistor extends ActiveElement {
         switch (this._orientation){
 
             case 0:
-                this._path = `M ${x*SCALE} ${y*SCALE} 
-                h ${wireResLength*SCALE} 
-                v ${mainResH/2*SCALE} 
-                h ${mainResW*SCALE} 
-                v -${mainResH*SCALE} 
-                h -${mainResW*SCALE} 
-                v ${mainResH/2*SCALE} 
-                m ${mainResW*SCALE} 0
-                h ${wireResLength*SCALE}`;
+                this._path = `M ${x * SCALE} ${y * SCALE} 
+                h ${wireResL * SCALE} 
+                v ${mainResH / 2 * SCALE} 
+                h ${mainResW * SCALE} 
+                v ${-mainResH * SCALE} 
+                h ${-mainResW * SCALE} 
+                v ${mainResH / 2 * SCALE} 
+                m ${mainResW * SCALE} 0
+                h ${wireResL * SCALE}`;
             break;
 
             case 90:
-                this._path = `M ${x*SCALE} ${y*SCALE} 
-                v -${wireResLength*SCALE} 
-                h ${mainResH/2*SCALE} 
-                v -${mainResW*SCALE} 
-                h -${mainResH*SCALE} 
-                v ${mainResW*SCALE} 
-                h ${mainResH/2*SCALE} 
-                m 0 -${mainResW*SCALE} 
-                v -${wireResLength*SCALE}`;
+                this._path = `M ${x * SCALE} ${y * SCALE} 
+                v ${-wireResL * SCALE} 
+                h ${mainResH / 2 * SCALE} 
+                v ${-mainResW * SCALE} 
+                h ${-mainResH * SCALE} 
+                v ${mainResW * SCALE} 
+                h ${mainResH / 2 * SCALE} 
+                m 0 ${-mainResW * SCALE} 
+                v ${-wireResL * SCALE}`;
             break;
 
             case 180:
-                this._path = `M ${x*SCALE} ${y*SCALE} 
-                h -${wireResLength*SCALE} 
-                v ${mainResH/2*SCALE} 
-                h -${mainResW*SCALE} 
-                v -${mainResH*SCALE} 
-                h ${mainResW*SCALE} 
-                v ${mainResH/2*SCALE} 
-                m -${mainResW*SCALE} 0
-                h -${wireResLength*SCALE}`;
+                this._path = `M ${x * SCALE} ${y * SCALE} 
+                h ${-wireResL * SCALE} 
+                v ${mainResH / 2 * SCALE} 
+                h ${-mainResW * SCALE} 
+                v ${-mainResH * SCALE} 
+                h ${mainResW * SCALE} 
+                v ${mainResH / 2 * SCALE} 
+                m ${-mainResW * SCALE} 0
+                h ${-wireResL * SCALE}`;
             break;
 
             case 270:
-                this._path = `M ${x*SCALE} ${y*SCALE} 
-                v ${wireResLength*SCALE} 
-                h ${mainResH/2*SCALE} 
-                v ${mainResW*SCALE} 
-                h -${mainResH*SCALE} 
-                v -${mainResW*SCALE} 
-                h ${mainResH/2*SCALE} 
-                m 0 ${mainResW*SCALE} 
-                v ${wireResLength*SCALE}`;
+                this._path = `M ${x * SCALE} ${y * SCALE} 
+                v ${wireResL * SCALE} 
+                h ${mainResH / 2 * SCALE} 
+                v ${mainResW * SCALE} 
+                h -${mainResH * SCALE} 
+                v -${mainResW * SCALE} 
+                h ${mainResH / 2 * SCALE} 
+                m 0 ${mainResW * SCALE} 
+                v ${wireResL * SCALE}`;
             break;
         }
     }
@@ -532,34 +594,34 @@ class Key extends ActiveElement {
 
             case 0:
                 this._path = `M${x * SCALE} ${y * SCALE}
-                h ${wireKeyLength * SCALE}
-                l ${0.8 * mainKeyLength * SCALE} -${0.5 * mainKeyLength * SCALE}
-                m ${0.2 * mainKeyLength * SCALE} ${0.5 * mainKeyLength * SCALE}
-                h ${wireKeyLength * SCALE}`;
+                h ${wireKeyL * SCALE}
+                l ${0.8 * mainKeyL * SCALE} ${-0.5 * mainKeyL * SCALE}
+                m ${0.2 * mainKeyL * SCALE} ${0.5 * mainKeyL * SCALE}
+                h ${wireKeyL * SCALE}`;
             break;
 
             case 90:
                 this._path = `M${x * SCALE} ${y * SCALE}
-                v -${wireKeyLength * SCALE}
-                l -${0.5 * mainKeyLength * SCALE} -${0.8 * mainKeyLength * SCALE}
-                m ${0.5 * mainKeyLength * SCALE} -${0.2 * mainKeyLength * SCALE}
-                v -${wireKeyLength * SCALE}`;
+                v ${-wireKeyL * SCALE}
+                l ${-0.5 * mainKeyL * SCALE} -${0.8 * mainKeyL * SCALE}
+                m ${0.5 * mainKeyL * SCALE} -${0.2 * mainKeyL * SCALE}
+                v ${-wireKeyL * SCALE}`;
             break;
 
             case 180:
                 this._path = `M${x * SCALE} ${y * SCALE}
-                h -${wireKeyLength * SCALE}
-                l -${0.8 * mainKeyLength * SCALE} ${0.5 * mainKeyLength * SCALE}
-                m -${0.2 * mainKeyLength * SCALE} -${0.5 * mainKeyLength * SCALE}
-                h -${wireKeyLength * SCALE}`;
+                h -${wireKeyL * SCALE}
+                l -${0.8 * mainKeyL * SCALE} ${0.5 * mainKeyL * SCALE}
+                m -${0.2 * mainKeyL * SCALE} -${0.5 * mainKeyL * SCALE}
+                h -${wireKeyL * SCALE}`;
             break;
 
             case 270:
                 this._path = `M${x * SCALE} ${y * SCALE}
-                v ${wireKeyLength * SCALE}
-                l ${0.5 * mainKeyLength * SCALE} ${0.8 * mainKeyLength * SCALE}
-                m -${0.5 * mainKeyLength * SCALE} ${0.2 * mainKeyLength * SCALE}
-                v ${wireKeyLength * SCALE}`;
+                v ${wireKeyL * SCALE}
+                l ${0.5 * mainKeyL * SCALE} ${0.8 * mainKeyL * SCALE}
+                m ${-0.5 * mainKeyL * SCALE} ${0.2 * mainKeyL * SCALE}
+                v ${wireKeyL * SCALE}`;
             break;
         }
     }
@@ -574,26 +636,26 @@ class Key extends ActiveElement {
         switch (this._orientation){
 
             case 0:
-                inBody = Math.abs(x - this.centerX) <= mainKeyLength / 2;
-                inBody = inBody & this.centerY - y <= mainKeyLength / 2;
+                inBody = Math.abs(x - this.centerX) <= mainKeyL / 2;
+                inBody = inBody & this.centerY - y <= mainKeyL / 2;
                 inBody = inBody & this.centerY - y > 0;
             break;
 
             case 90:
-                inBody = Math.abs(y - this.centerY) <= mainKeyLength / 2;
-                inBody = inBody & this.centerX - x <= mainKeyLength / 2;
+                inBody = Math.abs(y - this.centerY) <= mainKeyL / 2;
+                inBody = inBody & this.centerX - x <= mainKeyL / 2;
                 inBody = inBody & this.centerX - x > 0;
             break;
 
             case 180:
-                inBody = Math.abs(x - this.centerX) <= mainKeyLength / 2;
-                inBody = inBody & y - this.centerY <= mainKeyLength / 2;
+                inBody = Math.abs(x - this.centerX) <= mainKeyL / 2;
+                inBody = inBody & y - this.centerY <= mainKeyL / 2;
                 inBody = inBody & y - this.centerY > 0;
             break;
 
             case 270:
-                inBody = Math.abs(y - this.centerY) <= mainKeyLength / 2;
-                inBody = inBody & x - this.centerX <= mainKeyLength / 2;
+                inBody = Math.abs(y - this.centerY) <= mainKeyL / 2;
+                inBody = inBody & x - this.centerX <= mainKeyL / 2;
                 inBody = inBody & x - this.centerX > 0;
             break;
         }
@@ -603,7 +665,7 @@ class Key extends ActiveElement {
 }
 
 
-class Lamp extends ActiveElement {
+class Lamp extends RoundElement {
 
     constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
 
@@ -611,85 +673,54 @@ class Lamp extends ActiveElement {
 
         //SVG for drawing with params
 
+        super._calcPath();
+
         let x = this.x1;
         let y = this.y1;
 
         switch (this._orientation){
 
             case 0:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                h ${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
-                m ${mainLampR*SCALE*2} 0
-                h ${wireLampLength*SCALE}
-                m -${(mainLampR+wireLampLength)*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+                this._path += `m ${-(mainRoundR + wireRoundL) * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${1.4 * mainRoundR * SCALE} ${-1.4 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}`;
             break;
 
             case 90:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                v -${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
-                m 0 -${mainLampR*SCALE*2}
-                v -${wireLampLength*SCALE}
-                m 0 ${(mainLampR+wireLampLength)*SCALE}
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+                this._path += `m 0 ${(mainRoundR + wireRoundL) * SCALE}
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${1.4 * mainRoundR * SCALE} ${-1.4 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}`;
             break;
 
             case 180:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                h -${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
-                m -${mainLampR*SCALE*2} 0
-                h -${wireLampLength*SCALE}
-                m ${(mainLampR+wireLampLength)*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+                this._path += `m ${(mainRoundR + wireRoundL) * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${1.4 * mainRoundR * SCALE} ${-1.4 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}`;
             break;
 
             case 270:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                v ${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
-                m 0 ${mainLampR*SCALE*2}
-                v ${wireLampLength*SCALE}
-                m 0 -${(mainLampR+wireLampLength)*SCALE}
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*1.4*SCALE} -${mainLampR*1.4*SCALE}
-                m -${mainLampR*1.4*SCALE} 0
-                l ${mainLampR*0.7*SCALE} ${mainLampR*0.7*SCALE}`;
+                this._path += `m 0 -${(mainRoundR + wireRoundL)*SCALE}
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${1.4 * mainRoundR * SCALE} ${-1.4 * mainRoundR * SCALE}
+                m ${-1.4 * mainRoundR * SCALE} 0
+                l ${0.7 * mainRoundR * SCALE} ${0.7 * mainRoundR * SCALE}`;
             break;
         }
-    }
-
-    isInArea(xAbs, yAbs){
-        let x = Math.round((xAbs)/SCALE);
-        let y = Math.round((yAbs)/SCALE);
-
-        let distanceFromCenter = Math.sqrt(Math.pow(this.centerX - x, 2) + Math.pow(this.centerY - y, 2));
-
-        return super.isInArea(xAbs, yAbs) | distanceFromCenter < mainLampR;
     }
 }
 
 
-class CurrentSource extends ActiveElement{
+class CurrentSource extends RoundElement{
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
 
@@ -697,81 +728,49 @@ class CurrentSource extends ActiveElement{
 
         //SVG for drawing with params
 
+        super._calcPath();
+
         let x = this.x1;
         let y = this.y1;
 
         switch (this._orientation){
 
             case 0:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                h ${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
-                m ${mainLampR*SCALE*2} 0
-                h ${wireLampLength*SCALE}
-                m -${(mainLampR*1.5+wireLampLength)*SCALE} 0
-                h ${mainLampR*SCALE}
-                m ${-0.35*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
-                l ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                m ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                l ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
-                `;
+                this._path += `m ${-(1.5 * mainRoundR + wireRoundL)*SCALE} 0
+                h ${mainRoundR * SCALE}
+                m ${-0.35 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}
+                l ${0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                m ${-0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                l ${0.3 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}`;
             break;
 
             case 90:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                v -${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
-                m 0 -${mainLampR*SCALE*2}
-                v -${wireLampLength*SCALE}
-                m 0 ${(mainLampR*1.5+wireLampLength)*SCALE}
-                v -${mainLampR*SCALE}
-                m ${-0.3*mainLampR*SCALE} ${0.35*mainLampR*SCALE} 
-                l ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
-                m ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                l ${-0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}`;
+                this._path += `m 0 ${(1.5 * mainRoundR + wireRoundL) * SCALE}
+                v ${-mainRoundR * SCALE}
+                m ${-0.3 * mainRoundR * SCALE} ${0.35 * mainRoundR * SCALE} 
+                l ${0.3 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}
+                m ${0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                l ${-0.3 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}`;
             break;
 
             case 180:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                h -${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 -${mainLampR*SCALE*2} 0
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 ${mainLampR*SCALE*2} 0
-                m -${mainLampR*SCALE*2} 0
-                h -${wireLampLength*SCALE}
-                m ${(mainLampR*1.5+wireLampLength)*SCALE} 0
-                h -${mainLampR*SCALE}
-                m ${0.35*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
-                l ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                m ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                l ${-0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}`
+                this._path += `m ${(1.5 * mainRoundR + wireRoundL) * SCALE} 0
+                h ${-mainRoundR * SCALE}
+                m ${0.35 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}
+                l ${-0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                m ${0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                l ${-0.3 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}`
             break;
 
             case 270:
-                this._path = `M${x*SCALE} ${y*SCALE}
-                v ${wireLampLength*SCALE} 
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 ${mainLampR*SCALE*2}
-                a ${mainLampR*SCALE} ${mainLampR*SCALE} 0 1 1 0 -${mainLampR*SCALE*2}
-                m 0 ${mainLampR*SCALE*2}
-                v ${wireLampLength*SCALE}
-                m 0 ${-(mainLampR*1.5+wireLampLength)*SCALE}
-                v ${mainLampR*SCALE}
-                m ${-0.3*mainLampR*SCALE} ${-0.35*mainLampR*SCALE} 
-                l ${0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}
-                m ${0.3*mainLampR*SCALE} ${-0.3*mainLampR*SCALE}
-                l ${-0.3*mainLampR*SCALE} ${0.3*mainLampR*SCALE}`;
+                this._path += `m 0 ${-(1.5 * mainRoundR + wireRoundL) * SCALE}
+                v ${mainRoundR * SCALE}
+                m ${-0.3 * mainRoundR * SCALE} ${-0.35 * mainRoundR * SCALE} 
+                l ${0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}
+                m ${0.3 * mainRoundR * SCALE} ${-0.3 * mainRoundR * SCALE}
+                l ${-0.3 * mainRoundR * SCALE} ${0.3 * mainRoundR * SCALE}`;
             break;
         }
-    }
-
-    isInArea(xAbs, yAbs){
-        let x = Math.round((xAbs)/SCALE);
-        let y = Math.round((yAbs)/SCALE);
-
-        let distanceFromCenter = Math.sqrt(Math.pow(this.centerX - x, 2) + Math.pow(this.centerY - y, 2));
-
-        return super.isInArea(xAbs, yAbs) | distanceFromCenter < mainLampR;
     }
 }
 
@@ -867,7 +866,13 @@ class VoltageSource extends ActiveElement{
     }
 }
 
-class Wire extends Element{
+
+class Voltmetr extends RoundElement{
+
+}
+
+
+class Wire extends BaseElement{
 
     constructor(x1, y1, x2, y2, ctx) {
         super(x1, y1, ctx);
