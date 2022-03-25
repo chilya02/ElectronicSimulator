@@ -101,8 +101,8 @@ class BaseElement{
         this.xStart = this.x1;
         this.yStart = this.y1;
 
-        this._node1 = new Node();
-        this._node2 = new Node();
+        this.node1 = new Node();
+        this.node2 = new Node();
 
         this.lastSelected = null;
         this.selected = false;
@@ -163,7 +163,7 @@ class BaseElement{
             let x = Math.round((xAbs)/SCALE);
             let y = Math.round((yAbs)/SCALE);
             
-            if (this._node1.selected | this._node2.selected){
+            if (this.node1.selected | this.node2.selected){
                 this.rotate(x, y)
             }
             else { 
@@ -175,7 +175,7 @@ class BaseElement{
     }
 
     _checkNodes(xAbs, yAbs, isPressed){
-        for (let node of [this._node1, this._node2]){
+        for (let node of [this.node1, this.node2]){
             node.checkPoint(xAbs, yAbs, isPressed);
             if (node.selected) this.lastSelected = node;
 
@@ -194,14 +194,14 @@ class BaseElement{
             ctx.stroke(element)
         }
 
-        this._node1.draw(ctx);
-        this._node2.draw(ctx);
+        this.node1.draw(ctx);
+        this.node2.draw(ctx);
     }
     
 
     move(dx, dy){
-        this.x1 = this.xStart + dx;
-        this.y1 = this.yStart + dy;
+        this.x1 = Math.round(this.xStart + dx);
+        this.y1 = Math.round(this.yStart + dy);
         this._calcPath();
         this.update = true;
         if ((dx+dy)) this.isMoving = true;
@@ -251,12 +251,12 @@ class ActiveElement extends BaseElement {
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
 
-        let inNode = this._node1.isInArea(x, y) | this._node2.isInArea(x, y);
+        let inNode = this.node1.isInArea(x, y) | this.node2.isInArea(x, y);
         
         switch(this._orientation){
 
             case 0:
-                return x > this.x1 & x < this.x2 & y == this.y1 & y == this.y2 | inNode;
+                return x > this.x1 & x < this.x2 & y == Math.round(this.y1) & y == Math.round(this.y2) | inNode;
 
             case 90:
                 return y < this.y1 & y > this.y2 & x == this.x1 & x == this.x2 | inNode;
@@ -272,7 +272,7 @@ class ActiveElement extends BaseElement {
 
     rotate(x, y){
 
-        if (this._node1.selected){
+        if (this.node1.selected){
 
             let dx = x - this.x2;
             let dy = y - this.y2;
@@ -333,7 +333,7 @@ class ActiveElement extends BaseElement {
                 }
         }
 
-        if (this._node2.selected){
+        if (this.node2.selected){
 
             let dx = x - this.x1;
             let dy = y - this.y1;
@@ -425,8 +425,8 @@ class ActiveElement extends BaseElement {
             break;
         }
 
-        this._node1.setPoint(this.x1, this.y1);
-        this._node2.setPoint(this.x2, this.y2);
+        this.node1.setPoint(this.x1, this.y1);
+        this.node2.setPoint(this.x2, this.y2);
     }
 }
 
@@ -923,7 +923,7 @@ class Voltmetr extends MeasureDevice{
                 this._contentPath = `m ${(this.x2 -0.3 * mainRoundR) * SCALE} ${(this.y2 - 1.5 * mainRoundR - wireRoundL) * SCALE}`;
             break;
         }
-        
+
         this._contentPath += `l ${0.3 * mainRoundR * SCALE} ${0.9 * mainRoundR * SCALE} 
         l ${0.3 * mainRoundR * SCALE} ${-0.9 * mainRoundR * SCALE}`;
     }
@@ -1009,8 +1009,8 @@ class Wire extends BaseElement{
         this.y2 = y2;
 
         this.selected = true;
-        this._node2.selected = true;
-        this.lastSelected = this._node2;
+        this.node2.selected = true;
+        this.lastSelected = this.node2;
 
         this.x2Start = this.x2;
         this.y2Start = this.y2;
@@ -1032,13 +1032,13 @@ class Wire extends BaseElement{
 
     rotate(x, y){
 
-        if (this._node1.selected){
+        if (this.node1.selected){
             this.x1 = x;
             this.y1 = y;
             this.update = true;
         }
 
-        if (this._node2.selected){
+        if (this.node2.selected){
             this.x2 = x;
             this.y2 = y;
             this.update = true;
@@ -1053,8 +1053,8 @@ class Wire extends BaseElement{
         this._path = `M${this.x1*SCALE} ${this.y1*SCALE}
         L${this.x2*SCALE} ${this.y2*SCALE}`
 
-        this._node1.setPoint(this.x1, this.y1);
-        this._node2.setPoint(this.x2, this.y2);
+        this.node1.setPoint(this.x1, this.y1);
+        this.node2.setPoint(this.x2, this.y2);
     }
     
     isInArea(xAbs, yAbs){
@@ -1062,7 +1062,7 @@ class Wire extends BaseElement{
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
 
-        let inNode = this._node1.isInArea(x, y) | this._node2.isInArea(x, y);
+        let inNode = this.node1.isInArea(x, y) | this.node2.isInArea(x, y);
 
         if (this.y1 == this.y2){
             return inNode | Math.abs(yAbs - this.y1*SCALE) <= 5 &
@@ -1116,8 +1116,6 @@ class Layout{
 
         this.canvas = document.getElementById('layout');
 
-        //this.currentSource = new CurrentSource(5, 5, 250, 150, this.ctx);
-
         this.calcSize();
         this.ctxSetup();
         this._createNewElements();
@@ -1139,16 +1137,25 @@ class Layout{
         this.canvas.width = document.body.clientWidth;
         this.canvas.height = document.body.clientHeight;
 
-        this.downLineY = Math.round(this.height - 6 *SCALE)
+        this.leftLineX = Math.round((ELEMENT_LENGTH + 6) * SCALE);
 
-        this.newKeyRespX = Math.round(this.width / SCALE / 2 - ELEMENT_LENGTH / 2);
-        this.newKeyRespY = Math.round(this.height / SCALE - 3);
+        this.newRespX = 3;
 
-        this.newResistorRespX = Math.round(this.width / SCALE / 2 - ELEMENT_LENGTH * 3 / 2 - 5);
-        this.newResistorRespY = Math.round(this.height / SCALE - 3);
+        this.newKeyRespY = (this.height / SCALE / 16);
 
-        this.newLampRespX = Math.round(this.width / SCALE / 2 + ELEMENT_LENGTH / 2 + 5);
-        this.newLampRespY = Math.round(this.height / SCALE - 3);
+        this.newResistorRespY = (this.height / SCALE / 8 + this.height / SCALE / 16);
+
+        this.newLampRespY = (2 * this.height / SCALE / 8 + this.height / SCALE / 16);
+
+        this.newVoltSourceRespY = (3 * this.height / SCALE / 8 + this.height / SCALE / 16);
+        
+        this.newCurrentSourceRespY = (4 * this.height / SCALE / 8 + this.height / SCALE / 16);
+
+        this.newVoltmetrRespY = (5 * this.height / SCALE / 8 + this.height / SCALE / 16);
+
+        this.newAmpermetrRespY = (6 * this.height / SCALE / 8 + this.height / SCALE / 16);
+        
+        this.newOmmetrRespY = (7 * this.height / SCALE / 8 + this.height / SCALE / 16);
     }
 
     ctxSetup(){
@@ -1225,7 +1232,8 @@ class Layout{
         let update = false;
         let isAnySelected = false;
 
-        for (let element of [this.newKey, this.newResistor, this.newLamp]){
+        for (let element of [this.newKey, this.newResistor, this.newLamp, 
+            this.newAmpermetr, this.newVoltmetr, this.newOmmetr, this.newCurrentSource, this.newVoltageSource]){
             element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
             isAnySelected = isAnySelected | element.selected;
             update = update | element.update;
@@ -1264,11 +1272,14 @@ class Layout{
         if (this.lastSelected) this.lastSelected.draw(this.ctx);
         if (this.newWire) this.newWire.draw(this.ctx);
 
-        this.ctx.fillRect(0,this.downLineY, this.width, this.height - this.downLineY);
-        for (let element of [this.newKey, this.newResistor, this.newLamp]){
+        this.ctx.fillRect(0,0, this.leftLineX, this.height);
+
+        for (let element of [this.newKey, this.newResistor, this.newLamp, 
+        this.newAmpermetr, this.newVoltmetr, this.newOmmetr, this.newCurrentSource, this.newVoltageSource]){
             element.draw(this.ctx);
         }
-        this.ctx.stroke(new Path2D(`M 0 ${this.downLineY} l ${this.width} 0`));
+        this.ctx.strokeStyle = MAIN_COLOR;
+        this.ctx.stroke(new Path2D(`M ${this.leftLineX} 0 l 0 ${this.height}`));
     }
 
     mouseClick(xAbs, yAbs){
@@ -1321,7 +1332,7 @@ class Layout{
 
     _checkNewElementsPosition(){
         if (this.lastSelectedNew){
-            if (this.lastSelectedNew.y1 < this.downLineY/SCALE & this.lastSelectedNew.y2 < this.downLineY/SCALE){
+            if (this.lastSelectedNew.x1 > this.leftLineX/SCALE & this.lastSelectedNew.x2 > this.leftLineX/SCALE){
                 this.elements.push(this.lastSelectedNew);
                 this.lastSelected = this.lastSelectedNew;
                 this.lastSelectedNew = null;
@@ -1332,9 +1343,14 @@ class Layout{
     }
 
     _createNewElements(){
-        this.newKey = new Key(this.newKeyRespX, this.newKeyRespY, 0, this.ctx);
-        this.newResistor = new Resistor(this.newResistorRespX, this.newResistorRespY, 0, this.ctx);
-        this.newLamp = new Lamp(this.newLampRespX, this.newLampRespY, 0, this.ctx);
+        this.newKey = new Key(this.newRespX, this.newKeyRespY, 0, this.ctx);
+        this.newResistor = new Resistor(this.newRespX, this.newResistorRespY, 0, this.ctx);
+        this.newLamp = new Lamp(this.newRespX, this.newLampRespY, 0, this.ctx);
+        this.newVoltageSource = new VoltageSource (this.newRespX, this.newVoltSourceRespY, 0, this.ctx);
+        this.newCurrentSource = new CurrentSource (this.newRespX, this.newCurrentSourceRespY, 0, this.ctx);
+        this.newVoltmetr = new Voltmetr (this.newRespX, this.newVoltmetrRespY, 0, this.ctx);
+        this.newAmpermetr = new Ampermetr (this.newRespX, this.newAmpermetrRespY, 0, this.ctx);
+        this.newOmmetr = new Ommetr (this.newRespX, this.newOmmetrRespY, 0, this.ctx);
     }
 
     deleteItem(){
@@ -1350,6 +1366,118 @@ class Layout{
             }
         }
     }
+}
+
+
+class Point{
+
+    constructor(x, y){
+        this.x = x;
+        this.y = y;
+    }
+}
+
+
+class CircuitCalc{
+
+    constructor(){
+
+        this.nodes = []
+
+    };
+
+    calcNodes(elements){
+
+        this.nodes = [];
+
+        for (let element of elements){
+            if (element instanceof Wire){
+
+                let wire = element;
+                let added = false;
+
+                for (let node of this.nodes){                    
+                    added = added | node.checkWireNodes(wire);
+                }
+                if(!added){
+                    this.nodes.push(new SameNode([wire.node1, wire.node2]));
+                }
+            }
+        }
+
+        for (let element of elements){
+            if (!(element instanceof Wire)){
+
+                let node1Added = false;
+                let node2Added = false;
+
+                for (let node of this.nodes){                    
+                    node1Added = node1Added | node.checkElementNode(element.node1);
+                    node2Added = node2Added | node.checkElementNode(element.node2);
+                }
+                if (!node1Added){
+                    this.nodes.push(new SameNode(element.node1));
+                }
+                if (!node2Added){
+                    this.nodes.push(new SameNode(element.node2));
+                }
+            }
+        }
+    }
+}
+
+
+class SameNode{
+
+    constructor(arg){
+
+        this.points = [];
+        this.nodes = [];
+
+        if (arg instanceof Array){
+            for (let node of arg){
+                this.points.push(new Point(node.x, node.y));
+                this.nodes.push(node);
+            }
+        } else{
+                this.points.push(new Point(arg.x, arg.y));
+                this.nodes.push(arg);
+        } 
+    }
+
+    checkWireNodes(wire){
+
+        for (let point of this.points){
+            if (point.x == wire.x1 & point.y == wire.y1){
+                this.points.push(new Point(wire.x2, wire.y2));
+                this.nodes.push(wire.node1, wire.node2);
+                return true;
+            }
+            if (point.x == wire.x2 & point.y == wire.y2){
+                this.points.push(new Point(wire.x1, wire.y1));
+                this.nodes.push(wire.node1, wire.node2);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    checkElementNode(node){
+        for (let point of this.points){
+            if (point.x == node.x & point.y == node.y){
+                this.nodes.push(node);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+
+class Branch{
+    
+    constructor(){};
+
 }
 
 
