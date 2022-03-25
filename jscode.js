@@ -1375,6 +1375,10 @@ class Point{
         this.x = x;
         this.y = y;
     }
+
+    isEqual(point){
+        return this.x == point.x & this.y == point.y;
+    }
 }
 
 
@@ -1405,15 +1409,32 @@ class CircuitCalc{
             }
         }
 
+        for (let i = 0; i <= this.nodes.length; i++){
+            for (let index1 = 0; index1 < this.nodes.length; index1++){                    
+                for (let index2 = index1 + 1; index2 < this.nodes.length; index2++){                    
+                    if(this.nodes[index1].tryLink(this.nodes[index2])){
+                        this.nodes.splice(index2, 1);
+                    }
+                }
+            }
+        }
+
         for (let element of elements){
             if (!(element instanceof Wire)){
 
                 let node1Added = false;
                 let node2Added = false;
 
-                for (let node of this.nodes){                    
-                    node1Added = node1Added | node.checkElementNode(element.node1);
-                    node2Added = node2Added | node.checkElementNode(element.node2);
+                for (let node of this.nodes){  
+                    let thisIterationAddded1 = node.checkElementNode(element.node1);
+                    let thisIterationAddded2 = node.checkElementNode(element.node2);
+
+                    node1Added = node1Added | thisIterationAddded1;
+                    node2Added = node2Added | thisIterationAddded2;
+
+                    if (thisIterationAddded1 & thisIterationAddded2){
+                        node.activeElementCount -= 2;
+                    }
                 }
                 if (!node1Added){
                     this.nodes.push(new SameNode(element.node1));
@@ -1433,6 +1454,7 @@ class SameNode{
 
         this.points = [];
         this.nodes = [];
+        this.activeElementCount = 0;
 
         if (arg instanceof Array){
             for (let node of arg){
@@ -1442,7 +1464,12 @@ class SameNode{
         } else{
                 this.points.push(new Point(arg.x, arg.y));
                 this.nodes.push(arg);
+                this.activeElementCount ++;
         } 
+    }
+
+    get isUnrecoverable(){
+        return this.activeElementCount >= 3;
     }
 
     checkWireNodes(wire){
@@ -1466,6 +1493,57 @@ class SameNode{
         for (let point of this.points){
             if (point.x == node.x & point.y == node.y){
                 this.nodes.push(node);
+                this.activeElementCount ++;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    tryLink(sameNode){
+
+        let shouldAdd = false;
+
+        for (let point of sameNode.points){
+            if (this.containsPoint(point)){
+                shouldAdd = true;
+            }
+        }
+
+        if (shouldAdd){
+            this.link(sameNode);
+            return true;
+        }
+
+        return false;
+    }
+
+    link(sameNode){
+
+        for (let point of sameNode.points){
+            if (!(this.containsPoint(point))){ 
+                this.points.push(point);
+            }
+        }
+
+        for (let node of sameNode.nodes){
+            if (!(this.containsNode(node))){
+                this.nodes.push(node);
+            }
+        }
+    }
+
+    containsPoint(checkingPoint){
+        for (let point of this.points){
+            if (checkingPoint.isEqual(point)){
+                return true;
+            }
+        }
+    }
+
+    containsNode(checkingNode) {
+        for (let node of this.nodes) {
+            if (node == checkingNode) {
                 return true;
             }
         }
@@ -1532,6 +1610,8 @@ function deleteItem(e){
 
 
 let layout = new Layout();
+let calc = new CircuitCalc();
+
 layout.canvas.oncontextmenu = deleteContextMenu;
 layout.canvas.onmousemove = canvasMove;
 layout.canvas.onmousedown = canvasClick;  
