@@ -35,7 +35,8 @@ const wireVoltSourceL = (ELEMENT_LENGTH - mainVoltSourceL) / 2;
 
 class Node {
 
-    constructor(){
+    constructor(element){
+        this.element = element;
         this.x;
         this.y;
         this.selected = false;
@@ -78,13 +79,20 @@ class Node {
         if (this.selected){
             ctx.fillStyle = SELECTED_COLOR;
             ctx.fillRect(this.x*SCALE - 5, this.y*SCALE - 5, 10, 10)
-            ctx.fillStyle = BACK_COLOR;
         } else{
             ctx.beginPath();
             ctx.arc(this.x*SCALE, this.y*SCALE, 5, 0, 2*Math.PI);
             ctx.fillStyle = NODE_COLOR;
             ctx.fill();
-            ctx.fillStyle = BACK_COLOR;
+        }
+    }
+
+    get otherNode(){
+        if (this.element.node1 == this){
+            return this.element.node2;
+        }
+        if (this.element.node2 == this){
+            return this.element.node1;
         }
     }
 }
@@ -101,8 +109,8 @@ class BaseElement{
         this.xStart = this.x1;
         this.yStart = this.y1;
 
-        this.node1 = new Node();
-        this.node2 = new Node();
+        this.node1 = new Node(this);
+        this.node2 = new Node(this);
 
         this.lastSelected = null;
         this.selected = false;
@@ -124,6 +132,90 @@ class BaseElement{
     get selected(){
         return this._selected
     }
+
+    get nominal(){
+
+        if (this instanceof CurrentSource){
+            return this.current;
+        }
+        if (this instanceof VoltageSource){
+            return this.voltage;
+        }
+        if (this instanceof Lamp | this instanceof Resistor){
+            return this.resistance;
+        }
+        return null;
+    }
+
+    set nominal(value){
+
+        if (this instanceof CurrentSource){
+            this.current = value;
+        }
+        if (this instanceof VoltageSource){
+            this.voltage = value;
+        }
+        if (this instanceof Lamp | this instanceof Resistor){
+            this.resistance = value;
+        }
+    }
+
+    get nominalType(){
+
+        if (this instanceof CurrentSource){
+            return "Ток";
+        }
+        if (this instanceof VoltageSource){
+            return "Напряжение";
+        }
+        if (this instanceof Lamp | this instanceof Resistor){
+            return "Сопротивление";
+        }
+        return null;
+    }
+
+    get measurementUnits(){
+
+        if (this instanceof CurrentSource | this instanceof Ampermetr){
+            return "А";
+        }
+        if (this instanceof VoltageSource | this instanceof Voltmetr){
+            return "В";
+        }
+        if (this instanceof Lamp | this instanceof Resistor | this instanceof Ommetr){
+            return "Ом";
+        }
+        return null;
+    }
+
+    get hasProperties(){
+        if (this instanceof CurrentSource | this instanceof VoltageSource | this instanceof Lamp | this instanceof Resistor){
+            return true
+        }
+        return false;
+    }
+
+    get textDistance(){
+        let offset = 0.4;
+        if (this instanceof RoundElement){
+            return mainRoundR + offset;
+        }
+        if (this instanceof VoltageSource){
+            return plusMainVoltSourceL / 2 + offset;
+        }
+        if (this instanceof Resistor){
+            return mainResH / 2 + offset;
+        }
+        return null;
+    }
+
+    get hasIndications(){
+        if (this instanceof MeasureDevice){
+            return true;
+        }
+        return false;
+    }
+
 
     stopDrag(){
         this.xStart = this.x1;
@@ -428,6 +520,50 @@ class ActiveElement extends BaseElement {
         this.node1.setPoint(this.x1, this.y1);
         this.node2.setPoint(this.x2, this.y2);
     }
+
+    draw(ctx){
+        super.draw(ctx);
+        this.drawNominal(ctx);
+    }
+
+    
+    drawNominal(ctx){
+
+        if (this.hasProperties | this.hasIndications){
+
+            let x;
+            let y;
+
+            let text;
+
+            if (this.hasProperties){
+                text = this.nominal;
+            }else {
+                text = this.indications
+            }
+
+            text += this.measurementUnits;
+            
+            switch (this._orientation % 180){
+
+                case 0:
+                    x = this.centerX * SCALE;
+                    y = (this.centerY - this.textDistance) * SCALE;
+                    ctx.textAlign = "center";
+                break;
+
+                case 90:
+                    x = (this.centerX + this.textDistance) * SCALE;
+                    y = this.centerY * SCALE;
+                    ctx.textAlign = "left"
+                break;
+            }
+            ctx.font = "bold italic 16px Arial";
+            ctx.fillStyle = MAIN_COLOR;
+
+            ctx.fillText(text, x, y);
+        }
+    }
 }
 
 
@@ -495,7 +631,10 @@ class RoundElement extends ActiveElement{
 
 class MeasureDevice extends RoundElement{
 
-    constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx){
+        super(x, y, orientation, ctx);
+        this.indications = 0;
+    }
 
     draw(ctx){
         super.draw(ctx)
@@ -510,7 +649,10 @@ class MeasureDevice extends RoundElement{
 
 class Resistor extends ActiveElement {
 
-    constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx) {
+        super(x, y, orientation, ctx);
+        this.resistance = 1;
+    }
 
     _calcPath(){
         
@@ -598,7 +740,18 @@ class Resistor extends ActiveElement {
 
 class Key extends ActiveElement {
 
-    constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx) {
+        super(x, y, orientation, ctx)
+        this.state = false;
+    }
+
+    changeState(xAbs, yAbs){
+        if (this.isInBody(xAbs, yAbs)){
+
+            this.state = !this.state;
+            this._calcPath();
+        }
+    }
 
     _calcPath(){
 
@@ -615,7 +768,11 @@ class Key extends ActiveElement {
                 m ${mainKeyL * SCALE} 0
                 h ${wireKeyL * SCALE}`;
 
-                this._contentPath = `M ${(x + wireKeyL) * SCALE} ${y * SCALE}
+                this._contentPath = this.state ? 
+                `M ${(x + wireKeyL) * SCALE} ${y * SCALE - 3}
+                h ${mainKeyL * SCALE}`
+                :
+                `M ${(x + wireKeyL) * SCALE} ${y * SCALE}
                 l ${0.8 * mainKeyL * SCALE} ${-0.5 * mainKeyL * SCALE}`;
             break;
 
@@ -625,7 +782,11 @@ class Key extends ActiveElement {
                 m 0 -${mainKeyL * SCALE}
                 v ${-wireKeyL * SCALE}`;
 
-                this._contentPath = `M ${x * SCALE} ${(y - wireKeyL) * SCALE}
+                this._contentPath = this.state ? 
+                `M ${x * SCALE - 3} ${(y - wireKeyL) * SCALE}
+                v ${-mainKeyL * SCALE}`
+                :
+                `M ${x * SCALE} ${(y - wireKeyL) * SCALE}
                 l ${-0.5 * mainKeyL * SCALE} -${0.8 * mainKeyL * SCALE}`;
             break;
 
@@ -635,8 +796,12 @@ class Key extends ActiveElement {
                 m -${mainKeyL * SCALE} 0
                 h -${wireKeyL * SCALE}`;
 
-                this._contentPath = `M ${(x - wireKeyL)* SCALE} ${y * SCALE}
-                l -${0.8 * mainKeyL * SCALE} ${0.5 * mainKeyL * SCALE}`
+                this._contentPath = this.state ? 
+                `M ${(x - wireKeyL)* SCALE} ${y * SCALE + 3}
+                h ${-mainKeyL * SCALE}`
+                :
+                `M ${(x - wireKeyL)* SCALE} ${y * SCALE}
+                l -${0.8 * mainKeyL * SCALE} ${0.5 * mainKeyL * SCALE}`;
             break;
 
             case 270:
@@ -645,17 +810,20 @@ class Key extends ActiveElement {
                 m 0 ${mainKeyL * SCALE}
                 v ${wireKeyL * SCALE}`;
                 
-                this._contentPath = `M ${x * SCALE} ${(y + wireKeyL) * SCALE}
-                l ${0.5 * mainKeyL * SCALE} ${0.8 * mainKeyL * SCALE}`
+                this._contentPath = this.state ? 
+                `M ${x * SCALE + 3} ${(y + wireKeyL) * SCALE}
+                v ${mainKeyL * SCALE}`
+                :
+                `M ${x * SCALE} ${(y + wireKeyL) * SCALE}
+                l ${0.5 * mainKeyL * SCALE} ${0.8 * mainKeyL * SCALE}`;
             break;
         }
     }
 
-    isInArea(xAbs, yAbs){
+    isInBody(xAbs, yAbs){
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
-
         let inBody;
 
         switch (this._orientation){
@@ -663,29 +831,32 @@ class Key extends ActiveElement {
             case 0:
                 inBody = Math.abs(x - this.centerX) <= mainKeyL / 2;
                 inBody = inBody & this.centerY - y <= mainKeyL / 2;
-                inBody = inBody & this.centerY - y > 0;
+                inBody = inBody & this.centerY - y >= 0;
             break;
 
             case 90:
                 inBody = Math.abs(y - this.centerY) <= mainKeyL / 2;
                 inBody = inBody & this.centerX - x <= mainKeyL / 2;
-                inBody = inBody & this.centerX - x > 0;
+                inBody = inBody & this.centerX - x >= 0;
             break;
 
             case 180:
                 inBody = Math.abs(x - this.centerX) <= mainKeyL / 2;
                 inBody = inBody & y - this.centerY <= mainKeyL / 2;
-                inBody = inBody & y - this.centerY > 0;
+                inBody = inBody & y - this.centerY >= 0;
             break;
 
             case 270:
                 inBody = Math.abs(y - this.centerY) <= mainKeyL / 2;
                 inBody = inBody & x - this.centerX <= mainKeyL / 2;
-                inBody = inBody & x - this.centerX > 0;
+                inBody = inBody & x - this.centerX >= 0;
             break;
         }
+        return inBody;
+    }
 
-        return super.isInArea(xAbs, yAbs) | inBody;
+    isInArea(xAbs, yAbs){
+        return super.isInArea(xAbs, yAbs) | this.isInBody(xAbs, yAbs);
     }
 
     draw(ctx){
@@ -701,7 +872,10 @@ class Key extends ActiveElement {
 
 class Lamp extends RoundElement {
 
-    constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx) {
+        super(x, y, orientation, ctx);
+        this.resistance = 1;
+    }
 
     _calcPath(){
 
@@ -753,7 +927,10 @@ class Lamp extends RoundElement {
 
 class CurrentSource extends RoundElement{
 
-    constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx){
+        super(x, y, orientation, ctx);
+        this.current = 0.1;
+    }
 
     _calcPath(){
 
@@ -805,7 +982,10 @@ class CurrentSource extends RoundElement{
 
 class VoltageSource extends ActiveElement{
 
-    constructor(x, y, orientation, ctx) {super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx) {
+        super(x, y, orientation, ctx);
+        this.voltage = 5;
+    }
 
     _calcPath(){
         
@@ -1161,8 +1341,6 @@ class Layout{
     ctxSetup(){
         this.ctx = this.canvas.getContext('2d');
         this.ctx.lineWidth = 4;
-        this.ctx.strokeStyle = MAIN_COLOR;
-        this.ctx.fillStyle = BACK_COLOR;
     }
 
     checkPoint(xAbs, yAbs){
@@ -1263,6 +1441,7 @@ class Layout{
     }
     
     invalidate(){
+        this.ctx.fillStyle = BACK_COLOR;
         this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
         
         for (let element of this.elements){
@@ -1272,6 +1451,7 @@ class Layout{
         if (this.lastSelected) this.lastSelected.draw(this.ctx);
         if (this.newWire) this.newWire.draw(this.ctx);
 
+        this.ctx.fillStyle = BACK_COLOR;
         this.ctx.fillRect(0,0, this.leftLineX, this.height);
 
         for (let element of [this.newKey, this.newResistor, this.newLamp, 
@@ -1390,21 +1570,54 @@ class CircuitCalc{
 
     };
 
+    _checkShort(element){
+        let added = false;
+
+        for (let node of this.nodes){                    
+            added = added | node.checkShortNodes(element);
+        }
+        if(!added){
+            this.nodes.push(new SameNode([element.node1, element.node2]));
+        }
+    }
+
+    _checkNotShort(element){
+        let node1Added = false;
+        let node2Added = false;
+
+        for (let node of this.nodes){
+            let thisIterationAddded1 = node.checkElementNode(element.node1);
+            let thisIterationAddded2 = node.checkElementNode(element.node2);
+
+            node1Added = node1Added | thisIterationAddded1;
+            node2Added = node2Added | thisIterationAddded2;
+
+            if (thisIterationAddded1 & thisIterationAddded2){
+                node.activeElementCount -= 2;
+            }
+        }
+
+        if (!node1Added){
+            this.nodes.push(new SameNode(element.node1));
+        }
+        if (!node2Added){
+            this.nodes.push(new SameNode(element.node2));
+        }
+    }
+
     calcNodes(elements){
 
         this.nodes = [];
 
         for (let element of elements){
             if (element instanceof Wire){
-
-                let wire = element;
-                let added = false;
-
-                for (let node of this.nodes){                    
-                    added = added | node.checkWireNodes(wire);
-                }
-                if(!added){
-                    this.nodes.push(new SameNode([wire.node1, wire.node2]));
+                this._checkShort(element)
+            }
+            if (element instanceof Key){
+                if (element.state){
+                    this._checkShort(element)
+                } else{
+                    this._checkNotShort(element)
                 }
             }
         }
@@ -1420,27 +1633,19 @@ class CircuitCalc{
         }
 
         for (let element of elements){
-            if (!(element instanceof Wire)){
+            if (!(element instanceof Wire) & !(element instanceof Key)){
+                this._checkNotShort(element);
+            }
+        }
+    }
 
-                let node1Added = false;
-                let node2Added = false;
-
-                for (let node of this.nodes){  
-                    let thisIterationAddded1 = node.checkElementNode(element.node1);
-                    let thisIterationAddded2 = node.checkElementNode(element.node2);
-
-                    node1Added = node1Added | thisIterationAddded1;
-                    node2Added = node2Added | thisIterationAddded2;
-
-                    if (thisIterationAddded1 & thisIterationAddded2){
-                        node.activeElementCount -= 2;
+    calcBranches(elements){
+        for (let sameNode of this.nodes){
+            if (sameNode.isUnrecoverable){
+                for (let node of sameNode.nodes){
+                    if (!(node.element instanceof Wire | node.element instanceof Key)){
+                        
                     }
-                }
-                if (!node1Added){
-                    this.nodes.push(new SameNode(element.node1));
-                }
-                if (!node2Added){
-                    this.nodes.push(new SameNode(element.node2));
                 }
             }
         }
@@ -1464,7 +1669,9 @@ class SameNode{
         } else{
                 this.points.push(new Point(arg.x, arg.y));
                 this.nodes.push(arg);
-                this.activeElementCount ++;
+                if (!(arg.element instanceof Key)){
+                    this.activeElementCount ++;
+                }
         } 
     }
 
@@ -1472,7 +1679,7 @@ class SameNode{
         return this.activeElementCount >= 3;
     }
 
-    checkWireNodes(wire){
+    checkShortNodes(wire){
 
         for (let point of this.points){
             if (point.x == wire.x1 & point.y == wire.y1){
@@ -1493,7 +1700,9 @@ class SameNode{
         for (let point of this.points){
             if (point.x == node.x & point.y == node.y){
                 this.nodes.push(node);
-                this.activeElementCount ++;
+                if (!(node.element instanceof Key)){
+                    this.activeElementCount ++;
+                }
                 return true;
             }
         }
@@ -1556,24 +1765,80 @@ class Branch{
     
     constructor(){};
 
+    
+}
+
+
+class App{
+    constructor(){
+        this.layout = new Layout();
+        this.calc = new CircuitCalc();
+
+        this.overlay = document.querySelector('.overlay');
+        this.modal = document.querySelector('.dlg-modal');
+    }
+
+    doubleClick(xAbs, yAbs){
+        if (this.layout.lastSelected){
+            if (this.layout.lastSelected instanceof Key){
+                this.layout.lastSelected.changeState(xAbs, yAbs);
+                this.layout.invalidate();
+                return;
+            }
+            
+            if (this.layout.lastSelected.hasProperties){
+                if (this.layout.lastSelected.selected){
+                    this.openSetup();
+                }
+            }
+        }
+    }
+
+    openSetup(){
+        let element = this.layout.lastSelected;
+
+        this.overlay.classList.remove('fadeOut');
+        this.overlay.classList.add('fadeIn');
+        
+        this.modal.querySelector('.gwt-Label').textContent = `${element.nominalType} [${element.measurementUnits}]`;
+        this.modal.querySelector('.gwt-TextBox').value = element.nominal;
+        this.modal.classList.remove('fadeOut');
+        this.modal.classList.add('fadeIn');
+    }
+
+    setValue(){
+        let value = this.modal.querySelector('.gwt-TextBox').value;
+        let element = this.layout.lastSelected;
+        element.nominal = value;
+        closeSetup();
+        this.layout.invalidate();
+    }
+
+    closeSetup(){
+        this.modal.classList.remove('fadeIn');
+		this.modal.classList.add('fadeOut');
+
+        this.overlay.classList.remove('fadeIn');
+		this.overlay.classList.add('fadeOut');
+    }
 }
 
 
 function canvasMove(e){
-    let xAbs = e.pageX - layout.canvas.offsetLeft;
-    let yAbs = e.pageY - layout.canvas.offsetTop;
+    let xAbs = e.pageX - app.layout.canvas.offsetLeft;
+    let yAbs = e.pageY - app.layout.canvas.offsetTop;
 
-    layout.checkPoint(xAbs,yAbs) 
+    app.layout.checkPoint(xAbs,yAbs) 
 }
 
 
 function canvasRelease(e){
     switch (e.which){
         case 1:
-            layout.mouseRelease();
+            app.layout.mouseRelease();
         break;
         case 3:
-            layout.rightRelease(e.pageX, e.pageY);
+            app.layout.rightRelease(e.pageX, e.pageY);
         break;
     }
         
@@ -1583,17 +1848,17 @@ function canvasRelease(e){
 function canvasClick(e){
     switch (e.which){
         case 1:
-            layout.mouseClick(e.pageX, e.pageY);
+            app.layout.mouseClick(e.pageX, e.pageY);
         break;
         case 3:
-            layout.rightClick(e.pageX, e.pageY);
+            app.layout.rightClick(e.pageX, e.pageY);
         break;
     }
 }
 
 
 function canvasResize(e){
-    layout.changeSize();
+    app.layout.changeSize();
 }
 
 
@@ -1602,22 +1867,41 @@ function deleteContextMenu(e){
 }
 
 
-function deleteItem(e){
-    if (e.code == 'Delete') {
-        layout.deleteItem(e.pageX, e.pageY);
-      }
+function doubleClick(e){
+    app.doubleClick(e.pageX, e.pageY);
 }
 
 
-let layout = new Layout();
-let calc = new CircuitCalc();
+function releaseButton(e){
+    if (e.code == 'Delete') {
+        app.layout.deleteItem(e.pageX, e.pageY);
+    }
+    if(e.code == "Escape"){
+        closeSetup(e);
+    }
+}
 
-layout.canvas.oncontextmenu = deleteContextMenu;
-layout.canvas.onmousemove = canvasMove;
-layout.canvas.onmousedown = canvasClick;  
-layout.canvas.onmouseup = canvasRelease;
-layout.canvas.onresize = canvasResize;
-layout.canvas.onmouseout = canvasRelease;
+
+function closeSetup(e){
+    app.closeSetup();
+}
+
+function setValue(e){
+    app.setValue();
+}
+
+
+let app = new App();
+
+app.layout.canvas.oncontextmenu = deleteContextMenu;
+app.layout.canvas.onmousemove = canvasMove;
+app.layout.canvas.onmousedown = canvasClick;  
+app.layout.canvas.onmouseup = canvasRelease;
+app.layout.canvas.onresize = canvasResize;
+app.layout.canvas.onmouseout = canvasRelease;
+app.layout.canvas.ondblclick = doubleClick;
+
+document.querySelector('#cancelButton').addEventListener('click', closeSetup);
+document.querySelector('#setButton').addEventListener('click', setValue);
+document.addEventListener('keyup', releaseButton);
 window.onresize = canvasResize;
-
-document.addEventListener('keyup', deleteItem);
