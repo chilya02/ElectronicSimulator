@@ -391,6 +391,14 @@ class ActiveElement extends BaseElement {
         return this.__orientation
     }
 
+    get isInBranch(){
+        return this.branch != null;
+    }
+
+    resetBranch(){
+        this.branch = null;
+    }
+
     move(dx, dy){
         super.move(dx, dy);
         this._calcCoordinates();
@@ -1596,7 +1604,8 @@ class CircuitCalc{
 
     constructor(){
 
-        this.nodes = []
+        this.nodes = [];
+        this.branches = [];
 
     };
 
@@ -1674,12 +1683,74 @@ class CircuitCalc{
         for (let element of elements){
             if (!(element instanceof Wire) & !(element instanceof Key)){
                 this._checkNotShort(element);
+                element.resetBranch();
             }
         }
 
         for (let node of this.nodes){
             node.tryOptimize();
         }
+    }
+
+    calcBranches(){
+
+        this.branches = [];
+
+        for (let sameNode of this.nodes){
+            if (sameNode.isUnrecoverable){
+                for (let activeElementNode of sameNode.activeElementsNodes){
+
+                    let currentNode = activeElementNode;
+                    if (currentNode.element.isInBranch){
+                        continue;
+                    }
+                    let branchElements = [];
+
+                    while (1){
+                        branchElements.push(currentNode.element);
+                        if (currentNode.otherNode.globalNode.isUnrecoverable | currentNode.otherNode.globalNode.isBreak){
+                            this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
+                            break;
+                        }
+                        currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
+                        currentNode.otherNode.globalNode.activeElementsNodes[1]:
+                        currentNode.otherNode.globalNode.activeElementsNodes[0];
+                    }
+                }
+            }
+        }
+        if (this.branches.length == 0){
+            
+            for (let sameNode of this.nodes){
+               
+                for (let activeElementNode of sameNode.activeElementsNodes){
+
+                    let currentNode = activeElementNode;
+                    if (currentNode.element.isInBranch){
+                        continue;
+                    }
+                    let branchElements = [];
+
+                    while (1){
+                        branchElements.push(currentNode.element);
+                        if (currentNode.otherNode.globalNode == sameNode | currentNode.otherNode.globalNode.isBreak){
+                            this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
+                            break;
+                        }
+                        currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
+                        currentNode.otherNode.globalNode.activeElementsNodes[1]:
+                        currentNode.otherNode.globalNode.activeElementsNodes[0];
+                    }
+                }
+            }
+        }
+    }
+
+    calc(elements){
+        this.calcNodes(elements);
+        this.calcBranches();
+        console.log(this.nodes);
+        console.log(this.branches);
     }
 }
 
@@ -1709,6 +1780,10 @@ class SameNode{
 
     get isUnrecoverable(){
         return this.activeElementsNodes.length >= 3;
+    }
+
+    get isBreak(){
+        return this.activeElementsNodes.length <= 1;
     }
 
     checkShortNodes(wire){
@@ -1835,7 +1910,23 @@ class SameNode{
 
 class Branch{
     
-    constructor(){};
+    constructor(sameNode1, sameNode2, elements){
+        this.sameNode1 = sameNode1;
+        this.sameNode2 = sameNode2;
+        this.elements = elements;
+        for (let element of this.elements){
+            element.branch = this;
+        }
+    }
+
+    get resistance(){
+        let value = 0;
+        for (let element of this.elements){
+            if (element instanceof Wire | element instanceof Lamp){
+                value += element.nominal;
+            }
+        }
+    }
 
     
 }
