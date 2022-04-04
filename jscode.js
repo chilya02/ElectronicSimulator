@@ -41,6 +41,7 @@ class Node {
         this.y;
         this.selected = false;
         this.update = false;
+        this.globalNode = null;
     }
 
     setPoint(x, y){
@@ -135,16 +136,40 @@ class BaseElement{
 
     get nominal(){
 
+        let value = null;
+
         if (this instanceof CurrentSource){
-            return this.current;
+            value = this.current;
         }
         if (this instanceof VoltageSource){
-            return this.voltage;
+            value = this.voltage;
         }
         if (this instanceof Lamp | this instanceof Resistor){
-            return this.resistance;
+            value = this.resistance;
         }
-        return null;
+        return value;
+    }
+
+    get normalisedValue(){
+        let value;
+        if (this.hasProperties){
+            value = this.nominal;
+        } else if (this.hasIndications){
+            value = this.indications;
+        } else return;
+        if (value >= 1000000){
+            return (Math.floor(value / 100000) / 10) + 'М'
+        }
+        if (value >= 1000){
+            return (Math.floor(value / 100) / 10) + 'к'
+        }
+        if (value == 0){
+            return value;
+        } 
+        if (value <= 0.01){
+            return Math.floor(value * 100000) / 100 + 'м'
+        }
+        return Math.floor(value * 10) / 10 ;
     }
 
     set nominal(value){
@@ -288,6 +313,39 @@ class BaseElement{
 
         this.node1.draw(ctx);
         this.node2.draw(ctx);
+
+        this.drawValue(ctx);
+    }
+
+    
+    drawValue(ctx){
+
+        if (this.hasProperties | this.hasIndications){
+
+            let x;
+            let y;
+
+            let text = this.normalisedValue + this.measurementUnits;
+            
+            switch (this._orientation % 180){
+
+                case 0:
+                    x = this.centerX * SCALE;
+                    y = (this.centerY - this.textDistance) * SCALE;
+                    ctx.textAlign = "center";
+                break;
+
+                case 90:
+                    x = (this.centerX + this.textDistance) * SCALE;
+                    y = this.centerY * SCALE;
+                    ctx.textAlign = "left"
+                break;
+            }
+            ctx.font = "bold italic 16px Arial";
+            ctx.fillStyle = MAIN_COLOR;
+
+            ctx.fillText(text, x, y);
+        }
     }
     
 
@@ -519,50 +577,6 @@ class ActiveElement extends BaseElement {
 
         this.node1.setPoint(this.x1, this.y1);
         this.node2.setPoint(this.x2, this.y2);
-    }
-
-    draw(ctx){
-        super.draw(ctx);
-        this.drawNominal(ctx);
-    }
-
-    
-    drawNominal(ctx){
-
-        if (this.hasProperties | this.hasIndications){
-
-            let x;
-            let y;
-
-            let text;
-
-            if (this.hasProperties){
-                text = this.nominal;
-            }else {
-                text = this.indications
-            }
-
-            text += this.measurementUnits;
-            
-            switch (this._orientation % 180){
-
-                case 0:
-                    x = this.centerX * SCALE;
-                    y = (this.centerY - this.textDistance) * SCALE;
-                    ctx.textAlign = "center";
-                break;
-
-                case 90:
-                    x = (this.centerX + this.textDistance) * SCALE;
-                    y = this.centerY * SCALE;
-                    ctx.textAlign = "left"
-                break;
-            }
-            ctx.font = "bold italic 16px Arial";
-            ctx.fillStyle = MAIN_COLOR;
-
-            ctx.fillText(text, x, y);
-        }
     }
 }
 
@@ -1282,6 +1296,7 @@ class Layout{
     constructor(){
 
         this.elements = [];
+        this.newElements = [];
         this.devices = [];
 
         this._isPressed = false;
@@ -1410,8 +1425,7 @@ class Layout{
         let update = false;
         let isAnySelected = false;
 
-        for (let element of [this.newKey, this.newResistor, this.newLamp, 
-            this.newAmpermetr, this.newVoltmetr, this.newOmmetr, this.newCurrentSource, this.newVoltageSource]){
+        for (let element of this.newElements){
             element.checkPoint(xAbs, yAbs, this.xStart, this.yStart, this._isPressed)
             isAnySelected = isAnySelected | element.selected;
             update = update | element.update;
@@ -1454,8 +1468,7 @@ class Layout{
         this.ctx.fillStyle = BACK_COLOR;
         this.ctx.fillRect(0,0, this.leftLineX, this.height);
 
-        for (let element of [this.newKey, this.newResistor, this.newLamp, 
-        this.newAmpermetr, this.newVoltmetr, this.newOmmetr, this.newCurrentSource, this.newVoltageSource]){
+        for (let element of this.newElements){
             element.draw(this.ctx);
         }
         this.ctx.strokeStyle = MAIN_COLOR;
@@ -1501,11 +1514,19 @@ class Layout{
         }
         this.newWire = null;
         this.invalidate();
-    }
+    }x
 
     mouseRelease(){
         this._isPressed = false;
-        if (this.lastSelected) this.lastSelected.stopDrag();
+        if (this.lastSelected) {
+            this.lastSelected.stopDrag()
+            if (this.lastSelected.centerX * SCALE <= this.leftLineX | 
+                this.lastSelected.centerY * SCALE <= 0 | 
+                this.lastSelected.centerX * SCALE >= this.width |
+                this.lastSelected.centerY * SCALE >= this.height){
+                this.deleteItem();
+            }
+        };
         if (this.lastSelectedNew) this.lastSelectedNew.stopDrag();
         this._checkNewElementsPosition();
     }
@@ -1523,14 +1544,35 @@ class Layout{
     }
 
     _createNewElements(){
-        this.newKey = new Key(this.newRespX, this.newKeyRespY, 0, this.ctx);
-        this.newResistor = new Resistor(this.newRespX, this.newResistorRespY, 0, this.ctx);
-        this.newLamp = new Lamp(this.newRespX, this.newLampRespY, 0, this.ctx);
-        this.newVoltageSource = new VoltageSource (this.newRespX, this.newVoltSourceRespY, 0, this.ctx);
-        this.newCurrentSource = new CurrentSource (this.newRespX, this.newCurrentSourceRespY, 0, this.ctx);
-        this.newVoltmetr = new Voltmetr (this.newRespX, this.newVoltmetrRespY, 0, this.ctx);
-        this.newAmpermetr = new Ampermetr (this.newRespX, this.newAmpermetrRespY, 0, this.ctx);
-        this.newOmmetr = new Ommetr (this.newRespX, this.newOmmetrRespY, 0, this.ctx);
+        this.newElements = [];
+        this.newElements.push(new Key(this.newRespX, this.newKeyRespY, 0, this.ctx));
+        this.newElements.push(new Resistor(this.newRespX, this.newResistorRespY, 0, this.ctx));
+        this.newElements.push(new Lamp(this.newRespX, this.newLampRespY, 0, this.ctx));
+
+        let ampermetr = true;
+        let voltmetr = true;
+        let ommetr = true;
+        let voltage = true;
+        let current = true;
+
+        for (let element of this.elements){
+            if (element instanceof Voltmetr) voltmetr = false;
+            if (element instanceof Ommetr) ommetr = false;
+            if (element instanceof Ampermetr) ampermetr = false;
+            if (element instanceof VoltageSource) voltage = false;
+            if (element instanceof CurrentSource) current = false;
+        }
+
+        if (voltage)
+        this.newElements.push(new VoltageSource (this.newRespX, this.newVoltSourceRespY, 0, this.ctx));
+        if (current)
+        this.newElements.push(new CurrentSource (this.newRespX, this.newCurrentSourceRespY, 0, this.ctx));
+        if (voltmetr)
+        this.newElements.push(new Voltmetr (this.newRespX, this.newVoltmetrRespY, 0, this.ctx));
+        if (ampermetr)
+        this.newElements.push(new Ampermetr (this.newRespX, this.newAmpermetrRespY, 0, this.ctx));
+        if (ommetr)
+        this.newElements.push(new Ommetr (this.newRespX, this.newOmmetrRespY, 0, this.ctx));
     }
 
     deleteItem(){
@@ -1540,24 +1582,12 @@ class Layout{
                     if (this.elements[index].selected){
                         this.elements.splice(index, 1)
                         this.lastSelected = this.elements[this.elements.length - 1];
+                        this._createNewElements();
                         this.invalidate();
                     }
                 }
             }
         }
-    }
-}
-
-
-class Point{
-
-    constructor(x, y){
-        this.x = x;
-        this.y = y;
-    }
-
-    isEqual(point){
-        return this.x == point.x & this.y == point.y;
     }
 }
 
@@ -1571,6 +1601,9 @@ class CircuitCalc{
     };
 
     _checkShort(element){
+
+        //Check and add Wires + short Keys
+
         let added = false;
 
         for (let node of this.nodes){                    
@@ -1582,19 +1615,15 @@ class CircuitCalc{
     }
 
     _checkNotShort(element){
+
+        //Check not short elements
+
         let node1Added = false;
         let node2Added = false;
 
         for (let node of this.nodes){
-            let thisIterationAddded1 = node.checkElementNode(element.node1);
-            let thisIterationAddded2 = node.checkElementNode(element.node2);
-
-            node1Added = node1Added | thisIterationAddded1;
-            node2Added = node2Added | thisIterationAddded2;
-
-            if (thisIterationAddded1 & thisIterationAddded2){
-                node.activeElementCount -= 2;
-            }
+            node1Added = node1Added | node.checkElementNode(element.node1);
+            node2Added = node2Added | node.checkElementNode(element.node2);
         }
 
         if (!node1Added){
@@ -1605,9 +1634,7 @@ class CircuitCalc{
         }
     }
 
-    calcNodes(elements){
-
-        this.nodes = [];
+    checkWiresAndKeys(elements){
 
         for (let element of elements){
             if (element instanceof Wire){
@@ -1622,8 +1649,12 @@ class CircuitCalc{
             }
         }
 
+    }
+
+    tryLinkShortWires(){
+
         for (let i = 0; i <= this.nodes.length; i++){
-            for (let index1 = 0; index1 < this.nodes.length; index1++){                    
+            for (let index1 = 0; index1 < this.nodes.length; index1++){
                 for (let index2 = index1 + 1; index2 < this.nodes.length; index2++){                    
                     if(this.nodes[index1].tryLink(this.nodes[index2])){
                         this.nodes.splice(index2, 1);
@@ -1631,23 +1662,23 @@ class CircuitCalc{
                 }
             }
         }
+    }
+
+    calcNodes(elements){
+
+        this.nodes = [];
+
+        this.checkWiresAndKeys(elements);
+        this.tryLinkShortWires();
 
         for (let element of elements){
             if (!(element instanceof Wire) & !(element instanceof Key)){
                 this._checkNotShort(element);
             }
         }
-    }
 
-    calcBranches(elements){
-        for (let sameNode of this.nodes){
-            if (sameNode.isUnrecoverable){
-                for (let node of sameNode.nodes){
-                    if (!(node.element instanceof Wire | node.element instanceof Key)){
-                        
-                    }
-                }
-            }
+        for (let node of this.nodes){
+            node.tryOptimize();
         }
     }
 }
@@ -1657,64 +1688,71 @@ class SameNode{
 
     constructor(arg){
 
-        this.points = [];
         this.nodes = [];
-        this.activeElementCount = 0;
+        this.activeElementsNodes = [];
 
         if (arg instanceof Array){
             for (let node of arg){
-                this.points.push(new Point(node.x, node.y));
                 this.nodes.push(node);
+                node.globalNode = this;
             }
-        } else{
-                this.points.push(new Point(arg.x, arg.y));
+        }else{ 
+            if (!(arg.element instanceof Key)){
+                this.activeElementsNodes.push(arg);
+                arg.globalNode = this;
+            }else{
                 this.nodes.push(arg);
-                if (!(arg.element instanceof Key)){
-                    this.activeElementCount ++;
-                }
-        } 
+                arg.globalNode = this;
+            }
+        }
     }
 
     get isUnrecoverable(){
-        return this.activeElementCount >= 3;
+        return this.activeElementsNodes.length >= 3;
     }
 
     checkShortNodes(wire){
 
-        for (let point of this.points){
-            if (point.x == wire.x1 & point.y == wire.y1){
-                this.points.push(new Point(wire.x2, wire.y2));
-                this.nodes.push(wire.node1, wire.node2);
-                return true;
-            }
-            if (point.x == wire.x2 & point.y == wire.y2){
-                this.points.push(new Point(wire.x1, wire.y1));
-                this.nodes.push(wire.node1, wire.node2);
-                return true;
-            }
+        if (this.containsPoint(wire.node1)){
+            this.nodes.push(wire.node1, wire.node2);
+            wire.node1.globalNode = this;
+            wire.node2.globalNode = this;
+            return true;
         }
+
+        if (this.containsPoint(wire.node2)){
+            this.nodes.push(wire.node1, wire.node2);
+            wire.node1.globalNode = this;
+            wire.node2.globalNode = this;
+            return true;
+        }
+
         return false;
     }
 
     checkElementNode(node){
-        for (let point of this.points){
-            if (point.x == node.x & point.y == node.y){
-                this.nodes.push(node);
-                if (!(node.element instanceof Key)){
-                    this.activeElementCount ++;
-                }
+
+        if (this.containsPoint(node)){
+
+            node.globalNode = this;
+
+            if (!(node.element instanceof Key)){
+                this.activeElementsNodes.push(node);
                 return true;
             }
+
+            this.nodes.push(node);
+            return true;
         }
         return false;
     }
 
-    tryLink(sameNode){
+    tryLink(sameNode){ //TODO
 
         let shouldAdd = false;
 
-        for (let point of sameNode.points){
-            if (this.containsPoint(point)){
+        for (let node of sameNode.nodes){
+            if (this.containsPoint(node)){
                 shouldAdd = true;
             }
         }
@@ -1727,35 +1765,69 @@ class SameNode{
         return false;
     }
 
-    link(sameNode){
-
-        for (let point of sameNode.points){
-            if (!(this.containsPoint(point))){ 
-                this.points.push(point);
-            }
-        }
-
+    link(sameNode){ //TODO
         for (let node of sameNode.nodes){
             if (!(this.containsNode(node))){
                 this.nodes.push(node);
+                node.globalNode = this;
             }
         }
     }
 
-    containsPoint(checkingPoint){
-        for (let point of this.points){
-            if (checkingPoint.isEqual(point)){
+    tryOptimize(){
+        for (let node of this.activeElementsNodes){
+            if (node.globalNode == node.otherNode.globalNode){
+                this.replaceNodes(node, node.otherNode)
+            }
+        }
+    }
+
+    replaceNodes(node1, node2){
+        for (let index = 0; index < this.activeElementsNodes.length; index++){
+            if (node1 == this.activeElementsNodes[index]){
+                this.activeElementsNodes.splice(index, 1);
+                this.nodes.push(node1);
+            }
+        }
+        for (let index = 0; index < this.activeElementsNodes.length; index++){
+            if (node2 == this.activeElementsNodes[index]){
+                this.activeElementsNodes.splice(index, 1);
+                this.nodes.push(node2);
+            }
+        }
+    }
+
+    containsPoint(checkingNode){
+
+        for (let node of this.nodes){
+            if (node.x == checkingNode.x & node.y == checkingNode.y){
                 return true;
             }
         }
+
+        for (let node of this.activeElementsNodes){
+            if (node.x == checkingNode.x & node.y == checkingNode.y){
+                return true;
+            }
+        }
+
+        return false;
     }
 
     containsNode(checkingNode) {
+
         for (let node of this.nodes) {
             if (node == checkingNode) {
                 return true;
             }
         }
+
+        for (let node of this.activeElementsNodes) {
+            if (node == checkingNode) {
+                return true;
+            }
+        }
+
         return false;
     }
 }
@@ -1807,7 +1879,13 @@ class App{
     }
 
     setValue(){
-        let value = this.modal.querySelector('.gwt-TextBox').value;
+        let value = Number(this.modal.querySelector('.gwt-TextBox').value);
+
+        if (isNaN(value)){
+            alert("Введите число!");
+            return;
+        }
+
         let element = this.layout.lastSelected;
         element.nominal = value;
         closeSetup();
@@ -1885,6 +1963,7 @@ function releaseButton(e){
 function closeSetup(e){
     app.closeSetup();
 }
+
 
 function setValue(e){
     app.setValue();
