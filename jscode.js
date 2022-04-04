@@ -342,8 +342,12 @@ class BaseElement{
                 break;
             }
             ctx.font = "bold italic 16px Arial";
-            ctx.fillStyle = MAIN_COLOR;
-
+            if (this instanceof MeasureDevice){
+                ctx.fillStyle = NODE_COLOR;
+            } else{
+                ctx.fillStyle = MAIN_COLOR;
+            }
+            
             ctx.fillText(text, x, y);
         }
     }
@@ -1708,8 +1712,11 @@ class CircuitCalc{
 
                     while (1){
                         branchElements.push(currentNode.element);
-                        if (currentNode.otherNode.globalNode.isUnrecoverable | currentNode.otherNode.globalNode.isBreak){
+                        if (currentNode.otherNode.globalNode.isUnrecoverable){
                             this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
+                            break;
+                        }
+                        if (currentNode.otherNode.globalNode.isBreak){
                             break;
                         }
                         currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
@@ -1720,7 +1727,7 @@ class CircuitCalc{
             }
         }
         if (this.branches.length == 0){
-            
+
             for (let sameNode of this.nodes){
                
                 for (let activeElementNode of sameNode.activeElementsNodes){
@@ -1733,8 +1740,11 @@ class CircuitCalc{
 
                     while (1){
                         branchElements.push(currentNode.element);
-                        if (currentNode.otherNode.globalNode == sameNode | currentNode.otherNode.globalNode.isBreak){
+                        if (currentNode.otherNode.globalNode == sameNode){
                             this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
+                            break;
+                        }
+                        if (currentNode.otherNode.globalNode.isBreak){
                             break;
                         }
                         currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
@@ -1822,7 +1832,7 @@ class SameNode{
         return false;
     }
 
-    tryLink(sameNode){ //TODO
+    tryLink(sameNode){
 
         let shouldAdd = false;
 
@@ -1840,7 +1850,7 @@ class SameNode{
         return false;
     }
 
-    link(sameNode){ //TODO
+    link(sameNode){
         for (let node of sameNode.nodes){
             if (!(this.containsNode(node))){
                 this.nodes.push(node);
@@ -1922,10 +1932,11 @@ class Branch{
     get resistance(){
         let value = 0;
         for (let element of this.elements){
-            if (element instanceof Wire | element instanceof Lamp){
+            if (element instanceof Resistor | element instanceof Lamp){
                 value += element.nominal;
             }
         }
+        return value;
     }
 
     
