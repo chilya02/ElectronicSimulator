@@ -1,5 +1,4 @@
 const ELEMENT_LENGTH = 10;
-const DEFAULT_IMPEDANCE = 1;
 const SCALE = 16;
 
 //colors:
@@ -96,6 +95,14 @@ class Node {
             return this.element.node1;
         }
     }
+
+    get nextElementNode(){
+        if (this.globalNode){
+            return this.otherNode == this.otherNode.globalNode.activeElementsNodes[0] ?
+            this.otherNode.globalNode.activeElementsNodes[1]:
+            this.otherNode.globalNode.activeElementsNodes[0];
+        }
+    }
 }
 
 
@@ -169,7 +176,7 @@ class BaseElement{
         if (value <= 0.01){
             return Math.floor(value * 100000) / 100 + 'м'
         }
-        return Math.floor(value * 10) / 10 ;
+        return Math.floor(value * 100) / 100 ;
     }
 
     set nominal(value){
@@ -659,7 +666,6 @@ class MeasureDevice extends RoundElement{
 
     constructor(x, y, orientation, ctx){
         super(x, y, orientation, ctx);
-        this.indications = 0;
     }
 
     draw(ctx){
@@ -1105,6 +1111,12 @@ class Voltmetr extends MeasureDevice{
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
 
+    get indications(){
+        if (this.node1.globalNode && this.node2.globalNode){
+            return Math.abs(this.node1.globalNode.potential - this.node2.globalNode.potential);
+        } else return 0;
+    }
+
     _calcPath(){
 
         //SVG for drawing with params
@@ -1138,8 +1150,16 @@ class Voltmetr extends MeasureDevice{
 
 class Ampermetr extends MeasureDevice{
 
-    constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+    constructor(x, y, orientation, ctx){
+        super(x, y, orientation, ctx);
+    }
 
+    get indications(){
+        if (this.branch){
+            return this.branch.current;
+        } else return 0;
+    }
+    
     _calcPath(){
 
         //SVG for drawing with params
@@ -1175,6 +1195,10 @@ class Ampermetr extends MeasureDevice{
 class Ommetr extends MeasureDevice{
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
+
+    get indications(){
+        return 0;
+    }
 
     _calcPath(){
 
@@ -1381,11 +1405,24 @@ class Layout{
             update = update | this.newWire.update;
 
         } else {
+            let shouldCheckNew = true;
+            let shouldCheck= true;
+
             if (this.lastSelectedNew){
-                update = update | this._checkLastSelectedNew(xAbs, yAbs);
-            } else {
-                update = update | this._checkNewElements(xAbs, yAbs);
-                   
+                shouldCheck = !this.lastSelectedNew.selected;
+            }
+            if (this.lastSelected){
+                shouldCheckNew = !this.lastSelected.selected;
+            }
+
+            if (shouldCheckNew){
+                if (this.lastSelectedNew){
+                    update = update | this._checkLastSelectedNew(xAbs, yAbs);
+                } else {
+                    update = update | this._checkNewElements(xAbs, yAbs);
+                }
+            }
+            if (shouldCheck){
                 if (this.lastSelected){
                     update = update | this._checkLastSelected(xAbs, yAbs);
                 } else {
@@ -1476,9 +1513,6 @@ class Layout{
 
         if (this.lastSelected) this.lastSelected.draw(this.ctx);
         if (this.newWire) this.newWire.draw(this.ctx);
-
-        this.ctx.fillStyle = BACK_COLOR;
-        this.ctx.fillRect(0,0, this.leftLineX, this.height);
 
         for (let element of this.newElements){
             element.draw(this.ctx);
@@ -1611,6 +1645,9 @@ class CircuitCalc{
         this.nodes = [];
         this.branches = [];
 
+        this.baseNode;
+        this.knownNode = null;
+
     };
 
     _checkShort(element){
@@ -1712,46 +1749,148 @@ class CircuitCalc{
 
                     while (1){
                         branchElements.push(currentNode.element);
+                        
+                        if (currentNode.otherNode.globalNode.isBreak){
+                            break;
+                        }
+                        if (currentNode.otherNode.globalNode == sameNode){
+                            sameNode.cicles += 1;
+                            break;
+                        }
                         if (currentNode.otherNode.globalNode.isUnrecoverable){
                             this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
                             break;
                         }
-                        if (currentNode.otherNode.globalNode.isBreak){
-                            break;
-                        }
-                        currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
-                        currentNode.otherNode.globalNode.activeElementsNodes[1]:
-                        currentNode.otherNode.globalNode.activeElementsNodes[0];
+                        currentNode = currentNode.nextElementNode;
                     }
                 }
             }
         }
-        if (this.branches.length == 0){
+    }
 
-            for (let sameNode of this.nodes){
-               
-                for (let activeElementNode of sameNode.activeElementsNodes){
+    makeMatix(G, I, nodesForCalc){
 
-                    let currentNode = activeElementNode;
-                    if (currentNode.element.isInBranch){
-                        continue;
+        let rowIndex = 0;
+
+        for (let i = 0; i < nodesForCalc.length; i++){
+            if (nodesForCalc[i] == this.knownNode){
+                continue;
+            }
+
+            G.push(new Array());
+            for (let j = 0; j < nodesForCalc.length; j++){
+
+                let g = 0;
+
+                if (i == j){
+                    for (let branch of nodesForCalc[i].branches){
+                        let conductivity = (branch.resistance ** (-1));
+                        if (conductivity != Infinity){
+                            g += conductivity;
+                        }
                     }
-                    let branchElements = [];
-
-                    while (1){
-                        branchElements.push(currentNode.element);
-                        if (currentNode.otherNode.globalNode == sameNode){
-                            this.branches.push(new Branch(sameNode, currentNode.otherNode.globalNode, branchElements));
-                            break;
+                }else{
+                    for (let branch of nodesForCalc[i].branches){
+                        if (branch.sameNode2 == nodesForCalc[j] | branch.sameNode1 == nodesForCalc[j]){
+                            let conductivity = (branch.resistance ** (-1));
+                            if (conductivity != Infinity){
+                                g -= conductivity;
+                            }
                         }
-                        if (currentNode.otherNode.globalNode.isBreak){
-                            break;
-                        }
-                        currentNode = currentNode.otherNode == currentNode.otherNode.globalNode.activeElementsNodes[0] ? 
-                        currentNode.otherNode.globalNode.activeElementsNodes[1]:
-                        currentNode.otherNode.globalNode.activeElementsNodes[0];
                     }
                 }
+
+                if (nodesForCalc[j] == this.knownNode){
+                    I[rowIndex] = (- g) * this.knownNode.potential;
+                }else{
+                    G[rowIndex].push(g);
+                }
+            }
+
+            let nominal = 0;
+            let isPlus = false;
+            let isMinus = false;
+
+            for (let branch of nodesForCalc[i].branches){
+                for (let element of branch.elements){
+                    if (element instanceof CurrentSource){
+
+                        nominal = element.current;
+                        let currentNode = element.node2;
+                        isPlus = false;
+                        isMinus = false;
+
+                        while (1){
+                            if (currentNode.otherNode.globalNode.isUnrecoverable){
+                                if (currentNode.otherNode.globalNode == nodesForCalc[i]){
+                                    isPlus = true;
+                                }
+                                break;
+                            }
+                            currentNode = currentNode.nextElementNode;
+                        }
+
+                        currentNode = element.node1;
+
+                        while (1){
+                            if (currentNode.otherNode.globalNode.isUnrecoverable){
+                                if (currentNode.otherNode.globalNode == nodesForCalc[i]){
+                                    isMinus = true;
+                                }
+                                break;
+                            }
+                            currentNode = currentNode.nextElementNode;
+                        }
+                        if ((isPlus | isMinus) & !(isPlus&isMinus)){
+                            if (I[rowIndex]){
+                                I[rowIndex] += isPlus ? nominal: -nominal;
+                            } else {
+                                I[rowIndex] = isPlus ? nominal: -nominal;
+                            }
+                        }
+                    }
+                }
+            }
+
+            rowIndex++;
+        }
+    }
+
+    calcUnrecoverableNodes(){
+        let G = [];
+        let I = [];
+        let deltas = [];
+
+        let nodesForCalc = [];
+
+        for (let node of this.nodes){
+            if (node.isUnrecoverable & node != this.baseNode){
+                nodesForCalc.push(node);
+            }
+        }
+        this.makeMatix(G, I, nodesForCalc);
+
+        console.log(G);
+        console.log(I);
+
+        if (G.length > 0){
+            for (let column = 0; column < G.length; column++){
+                let tempMatrix = JSON.parse(JSON.stringify(G));
+                for (let row = 0; row < tempMatrix.length; row++){
+                    tempMatrix[row][column] = I[row];
+                }
+                deltas.push(det(tempMatrix));
+            }
+
+            let delta = det(G);
+            let index = 0;
+
+            for (let node of nodesForCalc){
+                if (node == this.knownNode){
+                    continue;
+                }
+                node.potential = deltas[index]/delta;
+                index++;
             }
         }
     }
@@ -1759,8 +1898,72 @@ class CircuitCalc{
     calc(elements){
         this.calcNodes(elements);
         this.calcBranches();
+
+        let isVoltageSource = false;
+        let isCurrentSource = false;
+
+        for (let element of elements){
+            if (element instanceof VoltageSource){
+                isVoltageSource = true;
+                element.node1.globalNode.potential = 0;
+                this.baseNode = element.node1.globalNode;
+                element.node2.globalNode.potential = element.nominal;
+                this.knownNode =  element.node2.globalNode;
+            }
+            if (element instanceof CurrentSource){
+                isCurrentSource = true;
+            }
+        }
+
+        if (!isVoltageSource){
+            for (let node of this.nodes){
+                if (node.isUnrecoverable){
+                    this.baseNode = node;
+                    break;
+                }
+            }  
+        }
+
+        //TODO Если 0 веток и есть ИТ от сделать его узлы неустранимыми и пересчитать ветки
+
+        this.knownNode = null;
+        this.baseNode = null;
+        
         console.log(this.nodes);
         console.log(this.branches);
+        this.calcUnrecoverableNodes();
+        this.calcRecoverableNodes();
+    }
+
+    calcRecoverableNodes(){
+        for (let branch of this.branches){
+            if (branch.elements[0] instanceof VoltageSource){
+                continue;
+            }
+            let startNode;
+            branch.current = (branch.sameNode1.potential - branch.sameNode2.potential) / branch.resistance;
+            for (let activeElementNode of branch.sameNode1.activeElementsNodes){
+                for (let element of branch.elements){
+                    if (activeElementNode.element == element){
+                        startNode = activeElementNode;
+                        break;
+                    }
+                }
+            }
+            let currentNode = startNode
+            //Если амперметр, то напряжение сохранить
+            while (1){
+                if (currentNode.otherNode.globalNode.isUnrecoverable){
+                    break;
+                }
+                if (currentNode instanceof Ampermetr){
+                    currentNode.otherNode.globalNode.potential = currentNode.potential;
+                }
+
+                currentNode = currentNode.nextElementNode;
+            }
+
+        }
     }
 }
 
@@ -1771,6 +1974,9 @@ class SameNode{
 
         this.nodes = [];
         this.activeElementsNodes = [];
+        this.branches = [];
+        this.potential = 0;
+        this.cicles = 0;
 
         if (arg instanceof Array){
             for (let node of arg){
@@ -1778,18 +1984,25 @@ class SameNode{
                 node.globalNode = this;
             }
         }else{ 
-            if (!(arg.element instanceof Key)){
-                this.activeElementsNodes.push(arg);
-                arg.globalNode = this;
+            if (arg.element instanceof Key | arg.element instanceof Voltmetr){
+                this.nodes.push(arg);     
             }else{
-                this.nodes.push(arg);
-                arg.globalNode = this;
+                this.activeElementsNodes.push(arg);
             }
+            arg.globalNode = this;
         }
     }
 
     get isUnrecoverable(){
-        return this.activeElementsNodes.length >= 3;
+        if (this.activeElementsNodes.length - this.cicles * 2 >= 3){
+            return true;
+        }
+        for (let node of this.activeElementsNodes){
+            if (node.element instanceof VoltageSource){
+                return true
+            }
+        }
+        return false;
     }
 
     get isBreak(){
@@ -1821,12 +2034,12 @@ class SameNode{
 
             node.globalNode = this;
 
-            if (!(node.element instanceof Key)){
-                this.activeElementsNodes.push(node);
+            if (node.element instanceof Key | node.element instanceof Voltmetr){
+                this.nodes.push(node);
                 return true;
             }
 
-            this.nodes.push(node);
+            this.activeElementsNodes.push(node);
             return true;
         }
         return false;
@@ -1923,7 +2136,14 @@ class Branch{
     constructor(sameNode1, sameNode2, elements){
         this.sameNode1 = sameNode1;
         this.sameNode2 = sameNode2;
+
+        sameNode1.branches.push(this);
+        sameNode2.branches.push(this);
+
+        this._current;
+
         this.elements = elements;
+
         for (let element of this.elements){
             element.branch = this;
         }
@@ -1939,7 +2159,18 @@ class Branch{
         return value;
     }
 
-    
+    set current(value){
+        this._current = value;
+    }
+
+    get current(){
+        for (let element of this.elements){
+            if (element instanceof CurrentSource){
+                return element.current;
+            }
+        }
+        return this._current;
+    }
 }
 
 
@@ -1947,6 +2178,8 @@ class App{
     constructor(){
         this.layout = new Layout();
         this.calc = new CircuitCalc();
+
+        this.isSetupOpened = false;
 
         this.overlay = document.querySelector('.overlay');
         this.modal = document.querySelector('.dlg-modal');
@@ -1956,6 +2189,7 @@ class App{
         if (this.layout.lastSelected){
             if (this.layout.lastSelected instanceof Key){
                 this.layout.lastSelected.changeState(xAbs, yAbs);
+                this.calc.calc(this.layout.elements);
                 this.layout.invalidate();
                 return;
             }
@@ -1969,6 +2203,7 @@ class App{
     }
 
     openSetup(){
+        this.isSetupOpened = true;
         let element = this.layout.lastSelected;
 
         this.overlay.classList.remove('fadeOut');
@@ -1981,25 +2216,53 @@ class App{
     }
 
     setValue(){
+        if (!this.isSetupOpened){
+            return;
+        }
+
         let value = Number(this.modal.querySelector('.gwt-TextBox').value);
 
         if (isNaN(value)){
-            alert("Введите число!");
+            alert("Введите положительное число!");
+            return;
+        }
+        if (value <= 0){
+            alert("Введите положительное число!");
             return;
         }
 
         let element = this.layout.lastSelected;
         element.nominal = value;
         closeSetup();
+        this.calc.calc(this.layout.elements);
+        this.layout.invalidate();
+    }
+
+    mouseRelease(e){
+        switch (e.which){
+            case 1:
+                this.layout.mouseRelease();
+            break;
+            case 3:
+                this.layout.rightRelease(e.pageX, e.pageY);
+            break;
+        }
+        this.calc.calc(this.layout.elements);
         this.layout.invalidate();
     }
 
     closeSetup(){
+        if (!this.isSetupOpened){
+            return;
+        }
+
         this.modal.classList.remove('fadeIn');
 		this.modal.classList.add('fadeOut');
 
         this.overlay.classList.remove('fadeIn');
 		this.overlay.classList.add('fadeOut');
+
+        this.isSetupOpened = false;
     }
 }
 
@@ -2013,15 +2276,7 @@ function canvasMove(e){
 
 
 function canvasRelease(e){
-    switch (e.which){
-        case 1:
-            app.layout.mouseRelease();
-        break;
-        case 3:
-            app.layout.rightRelease(e.pageX, e.pageY);
-        break;
-    }
-        
+    app.mouseRelease(e);       
 }
 
 
@@ -2054,10 +2309,15 @@ function doubleClick(e){
 
 function releaseButton(e){
     if (e.code == 'Delete') {
-        app.layout.deleteItem(e.pageX, e.pageY);
+        if (!app.isSetupOpened){
+            app.layout.deleteItem(e.pageX, e.pageY);
+        }
     }
-    if(e.code == "Escape"){
+    if (e.code == "Escape"){
         closeSetup(e);
+    }
+    if (e.code == "Enter"){
+        setValue(e);
     }
 }
 
@@ -2069,6 +2329,52 @@ function closeSetup(e){
 
 function setValue(e){
     app.setValue();
+}
+
+
+function det(A){
+
+    let N = A.length, B = [], denom = 1, exchanges = 0;
+
+    for (let i = 0; i < N; ++i){
+        B[i] = [];
+        for (let j = 0; j < N; ++j){
+            B[i][j] = A[i][j];
+        }
+    }
+
+    for (let i = 0; i < N-1; ++i){ 
+
+        let maxN = i, maxValue = Math.abs(B[i][i]);
+        for (let j = i+1; j < N; ++j){ 
+            var value = Math.abs(B[j][i]);
+            if (value > maxValue){ 
+                maxN = j; maxValue = value;
+            }
+        }
+
+        if (maxN > i){
+            let temp = B[i]; B[i] = B[maxN]; B[maxN] = temp;
+            ++exchanges;
+        }else {
+            if (maxValue == 0) return maxValue; 
+        }
+        let value1 = B[i][i];
+        for (let j = i+1; j < N; ++j){ 
+            let value2 = B[j][i];
+            B[j][i] = 0;
+            for (let k = i+1; k < N; ++k){
+                B[j][k] = (B[j][k]*value1-B[i][k]*value2)/denom;
+            }
+        }
+        denom = value1;
+    }
+
+    if (exchanges%2){
+        return -B[N-1][N-1];
+    }else {
+        return B[N-1][N-1];
+    }
 }
 
 
