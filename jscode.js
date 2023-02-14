@@ -1,40 +1,57 @@
-const ELEMENT_LENGTH = 10;
-const SCALE = 16;
+/* 
+ * Некоторые комментарии на английском. Они были написаны на этапе создания программы.
+ * 
+ * СОКРАЩЕНИЯ:
+ * ИН - источник напряжения
+ * ИТ - источник тока
+ * СК - система координат
+ * ЛКМ - левая кнопка мыши
+ * ПКМ - правая кнопка мыши
+ * ИП - Измерительный прибор
+*/
+const ELEMENT_LENGTH = 10;      //Длина элемента
+const SCALE = 16;               //Масштабный коэффициент
 
 //colors:
 
-const MAIN_COLOR = '#808080'
-const SELECTED_COLOR = '#00ffff'
-const NODE_COLOR = '#ffffff'
-const BACK_COLOR = '#000000'
+const MAIN_COLOR = '#808080'    //Цвет элементов
+const SELECTED_COLOR = '#00ffff'//Цвет выбранного элемента
+const NODE_COLOR = '#ffffff'    //Цвет узла
+const BACK_COLOR = '#000000'    //Цвет заднего фона
 
 //Constants for Resistor params
 
-const mainResW = 5;
-const mainResH = 2;
-const wireResL = (ELEMENT_LENGTH - mainResW) / 2;
+const mainResW = 5;             //Ширина основной части резистора
+const mainResH = 2;             //Высота основной части резистора
+const wireResL = (ELEMENT_LENGTH - mainResW) / 2; //Длина провода резистора
 
 //Constants for Key params
 
-const mainKeyL = 3;
-const wireKeyL = (ELEMENT_LENGTH - mainKeyL) / 2;
+const mainKeyL = 3;             //Длина основой части ключа
+const wireKeyL = (ELEMENT_LENGTH - mainKeyL) / 2; //Длина провода ключа
 
 //Constants for Round elements params
 
-const mainRoundR = 1.7;
-const wireRoundL = ELEMENT_LENGTH / 2 - mainRoundR;
+const mainRoundR = 1.7;         //Радиус основной части круговых элементов
+const wireRoundL = ELEMENT_LENGTH / 2 - mainRoundR; //Длина провода круговых элементов
 
 //Constants for Voltage Source params
 
-const mainVoltSourceL = 0.75;
-const minMainVoltSourceL = 2;
-const plusMainVoltSourceL = 4;
-const wireVoltSourceL = (ELEMENT_LENGTH - mainVoltSourceL) / 2;
+const mainVoltSourceL = 0.75;   //Длина основной части ИН
+const minMainVoltSourceL = 2;   //Длина короткой составляющей основной части ИН
+const plusMainVoltSourceL = 4;  //Длина длинной составляющей основной части ИН 
+const wireVoltSourceL = (ELEMENT_LENGTH - mainVoltSourceL) / 2; //Длина провода ИН
 
 
-class Node {
+class Node { //Класс узла элемента
 
     constructor(element){
+        /*
+         * Конструктор класса. 
+         * Привязывает узел к конкретному элементу element и устанавливает начальные значения атрибутов.
+         *
+         * @param {BaseElement} элемент, к которому привязывается узел 
+         */
         this.element = element;
         this.x;
         this.y;
@@ -44,11 +61,25 @@ class Node {
     }
 
     setPoint(x, y){
+        /*
+         * Устанавливает положение узла (x, y) в нашей собственной СК.
+         * 
+         * @param x абсцисса в нашей собственной СК. 
+         * @param y ордината в нашей собственной СК.
+         */
         this.x = x;
         this.y = y;
     }
 
     checkPoint(xAbs, yAbs, isPressed){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в границы узла с учетом нажатия ЛКМ.
+         * Если точка (xAbs, yAbs) попадает в узел, то он выделяется.
+         * 
+         * @param xAbs абсцисса в СК окна.
+         * @param yAbs ордината в СК окна.
+         * @param isPressed Нажата ли ЛКМ
+         */
         
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -62,32 +93,60 @@ class Node {
     }
 
     isInArea(x, y){
+        /*
+         * Проверяет точку (x, y) на попадание в границы узла.
+         * 
+         * @param x абсцисса в нашей собственной СК. 
+         * @param y ордината в нашей собственной СК.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
         
         return Math.abs(x - this.x) <= 5/SCALE & Math.abs(y - this.y) <= 5/SCALE
     }
 
     set selected(value){
+        /*
+         * Сетер для установки параметра выделения узла. 
+         * Дополнительно предписывает обновить отрисовку узла.
+         * 
+         * @param value значение выделения.
+         */
         this._selected = value;
         this.update = true;
     }
 
     get selected(){
+        /* 
+         * Гетер для параметра выделения узла.
+         * 
+         */
         return this._selected
     }
 
     draw(ctx){
+        /*  
+         * Рисует узел в контексте рисования ctx.
+         * 
+         * @param ctx контекст рисования.
+         */
         if (this.selected){
             ctx.fillStyle = SELECTED_COLOR;
             ctx.fillRect(this.x*SCALE - 5, this.y*SCALE - 5, 10, 10)
         } else{
             ctx.beginPath();
-            ctx.arc(this.x*SCALE, this.y*SCALE, 5, 0, 2*Math.PI);
             ctx.fillStyle = NODE_COLOR;
+            ctx.arc(this.x*SCALE, this.y*SCALE, 5, 0, 2*Math.PI);
             ctx.fill();
         }
     }
 
     get otherNode(){
+        /*
+         * Возвращает противоположный узел того же элемента
+         * 
+         * @return {Node} противоположный узел элемента.
+         */
         if (this.element.node1 == this){
             return this.element.node2;
         }
@@ -97,20 +156,45 @@ class Node {
     }
 
     get nextElementNode(){
+        /* 
+         * Возвращает узел другого элемента, соединенного с противоположным узлом текущего элемента.
+         * 
+         * @return {Node} узел другого элемента, соединенного с противоположным узлом текущего элемента.
+         */
         if (this.globalNode){
             return this.otherNode == this.otherNode.globalNode.activeElementsNodes[0] ?
             this.otherNode.globalNode.activeElementsNodes[1]:
             this.otherNode.globalNode.activeElementsNodes[0];
         }
     }
+
+    get sameNodeElement(){
+        /* 
+         * Возвращает узел другого элемента, соединенного с текущим узлом.
+         * 
+         * @return {Node} узел другого элемента, соединенного с текущим узлом.
+         */
+        if (this.globalNode){
+            return this == this.globalNode.activeElementsNodes[0] ?
+            this.globalNode.activeElementsNodes[1]:
+            this.globalNode.activeElementsNodes[0];
+        }
+    }
 }
 
 
-class BaseElement{
+class BaseElement{ //Абстрактный класс всех элементов цепи
 
     // Abstract class for all elements on the layout
 
     constructor(x, y){
+        /*
+         * Конструктор класса. 
+         * Устанавливает координаты (x, y) одного из узлов элемента, создает узлы и устанавливает начальные значения атрибутов.
+         *
+         * @param x абсцисса одного из узлов элемента в нашей собственной СК.
+         * @param y ордината одного из узлов элемента в нашей собственной СК.
+         */
         this.x1 = x;
         this.y1 = y;
 
@@ -127,10 +211,21 @@ class BaseElement{
     }
 
     get length(){
+        /* 
+         * Свойство: длина элемента.
+         * 
+         * @return {number} длина элемента в нашей собственной СК.
+         */
         return Math.sqrt((this.x1 - this.x2) ** 2 + (this.y1 - this.y2) ** 2);
     }
 
     set selected(value){
+        /* 
+         * Сетер для установки параметра выделения элемента. 
+         * Дополнительно предписывает обновить отрисовку элемента и записывыет координаты выделения или снятия выделения.
+         * 
+         * @param value значение выделения.
+         */
         this._selected = value;
         this.xStart = this.x1;
         this.yStart = this.y1;
@@ -138,11 +233,20 @@ class BaseElement{
     }
 
     get selected(){
+        /*
+         * Гетер для получения значения выделения.
+         * 
+         * @return {boolean} выделение. 
+         */
         return this._selected
     }
 
     get nominal(){
-
+        /* 
+         * Гетер для получения номинала элемента.
+         * 
+         * @return {number|null} номинал или ничего.
+         */
         let value = null;
 
         if (this instanceof CurrentSource){
@@ -158,12 +262,22 @@ class BaseElement{
     }
 
     get normalisedValue(){
+        /* 
+         * Свойство: нормализованное значение.
+         * 
+         * Возвращает строку для подписи номинала элемента цепи или индикации ИП с единицами измерения и округлением.
+         * @return {string} подпись для элемента.
+         */
         let value;
+
         if (this.hasProperties){
             value = this.nominal;
         } else if (this.hasIndications){
             value = this.indications;
         } else return;
+        if (value == Infinity){
+            return 'Ꝏ'
+        }
         if (value >= 1000000){
             return (Math.floor(value / 100000) / 10) + 'М'
         }
@@ -173,13 +287,18 @@ class BaseElement{
         if (value == 0){
             return value;
         } 
-        if (value <= 0.01){
+        if (value <= 0.1){
             return Math.floor(value * 100000) / 100 + 'м'
         }
         return Math.floor(value * 100) / 100 ;
     }
 
     set nominal(value){
+        /* 
+         * Универсальный установщик значения для номиналов элементов.
+         * 
+         * @param value для установки значения.
+         */
 
         if (this instanceof CurrentSource){
             this.current = value;
@@ -193,6 +312,11 @@ class BaseElement{
     }
 
     get nominalType(){
+        /* 
+         * Свойство: возврат наименования параметра элемента. 
+         * 
+         * @return {string|null} наименование параметра элемента.
+         */
 
         if (this instanceof CurrentSource){
             return "Ток";
@@ -207,6 +331,11 @@ class BaseElement{
     }
 
     get measurementUnits(){
+        /* 
+         * Свойство: возврат единиц измерения номинала элемента. 
+         * 
+         * @return {string|null} единицы измерения.
+         */
 
         if (this instanceof CurrentSource | this instanceof Ampermetr){
             return "А";
@@ -221,6 +350,11 @@ class BaseElement{
     }
 
     get hasProperties(){
+        /* 
+         * Свойство: возвращает true, если у элемента имеется номинал. Иначе - false.
+         * 
+         * @return {boolean} наличие номинала.
+         */
         if (this instanceof CurrentSource | this instanceof VoltageSource | this instanceof Lamp | this instanceof Resistor){
             return true
         }
@@ -228,6 +362,11 @@ class BaseElement{
     }
 
     get textDistance(){
+        /* 
+         * Свойство: отступ текста подписи. 
+         * 
+         * @return {float} значение отступа.
+         */
         let offset = 0.4;
         if (this instanceof RoundElement){
             return mainRoundR + offset;
@@ -242,6 +381,11 @@ class BaseElement{
     }
 
     get hasIndications(){
+        /* 
+         * Свойство: возвращает true, если у элемента имеется значения для индикации. Иначе - false
+         * 
+         * @return {boolean} наличие значения для индикации.
+         */
         if (this instanceof MeasureDevice){
             return true;
         }
@@ -250,12 +394,28 @@ class BaseElement{
 
 
     stopDrag(){
+        /*
+         * Фиксирует остановку перетаскивания элемента, изменяя соответсвующий атрибут.
+         * Обновляет координаты старта перетаскивания.
+         */
         this.xStart = this.x1;
         this.yStart = this.y1;
         this.isMoving = false;
     }
 
     checkPoint(xAbs, yAbs, xStart, yStart, isPressed){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в границы элемента с учетом нажатия ЛКМ.
+         * Если точка (xAbs, yAbs) попадает в элемент, то он выделяется.
+         * Если элемент выделен и нажата ЛКМ, то он перемещается вместе со своими узлами.
+         * При попадании точки в узел, вращает элемент.
+         * 
+         * @param xAbs абсцисса курсора в СК окна.
+         * @param yAbs ордината курсора в СК окна.
+         * @param xStart абсцисса нажатия ЛКМ в СК окна.
+         * @param yStart ордината нажатия ЛКМ в СК окна.
+         * @param isPressed Нажата ли ЛКМ.
+         */
         if (!this.isMoving){
             if (this.lastSelected){
 
@@ -299,6 +459,13 @@ class BaseElement{
     }
 
     _checkNodes(xAbs, yAbs, isPressed){
+        /* 
+         * Проверяет точку (xAbs, yAbs) на попадание в узлы элемента с учетом нажатия ЛКМ.
+         * 
+         * @param xAbs абсцисса курсора в СК окна.
+         * @param yAbs ордината курсора в СК окна.
+         * @param isPressed Нажата ли ЛКМ.
+         */
         for (let node of [this.node1, this.node2]){
             node.checkPoint(xAbs, yAbs, isPressed);
             if (node.selected) this.lastSelected = node;
@@ -309,6 +476,11 @@ class BaseElement{
     }
 
     draw(ctx){
+        /* 
+         * Рисует элемент в контексте ctx.
+         * 
+         * @param ctx контекст рисования.
+         */
         let element = new Path2D(this._path);
         if (this.selected){
             ctx.strokeStyle = SELECTED_COLOR;
@@ -326,7 +498,11 @@ class BaseElement{
 
     
     drawValue(ctx){
-
+        /* 
+         * Рисует надпись возле элемента в контексте ctx.
+         * 
+         * @param ctx контекст рисования.
+         */
         if (this.hasProperties | this.hasIndications){
 
             let x;
@@ -361,6 +537,13 @@ class BaseElement{
     
 
     move(dx, dy){
+        /* 
+         * Изменяет координаты элемента на (dx, dy) отнсительно первоначального положения.
+         * Автоматически пересчитывает путь рисования и дает команду на обновление отрисовки.
+         * 
+         * @param dx абсцисса сдвига в нашей собственной СК.
+         * @param dy ордината свдига в нашей собственной СК. 
+         */
         this.x1 = Math.round(this.xStart + dx);
         this.y1 = Math.round(this.yStart + dy);
         this._calcPath();
@@ -371,13 +554,22 @@ class BaseElement{
 }
 
 
-class ActiveElement extends BaseElement {
+class ActiveElement extends BaseElement { //Абстрактный класс для всех элементов, кроме провода
 
     // Abstract class for active elements 
     // Includes: 
     // Element + orientation + calculating coordinates
     
     constructor(x, y, orientation, ctx) {
+         /*
+         * Конструктор класса. 
+         * Вызывает конструктор родительского класса BaseElement.
+         *
+         * @param x абсцисса одного из узлов элемента в нашей собственной СК.
+         * @param y ордината одного из узлов элемента в нашей собственной СК.
+         * @param orientation ориетация элемента.
+         * @param ctx контекст для рисования.
+         */
         super(x, y);
 
         this._orientation = orientation;
@@ -388,6 +580,12 @@ class ActiveElement extends BaseElement {
     };
 
     set _orientation(value){
+        /* 
+         * Устанавливает и валидирует ориентацию элемента
+         * Автоматически располагает угол в пределах 0 - 359 градусов
+         * 
+         * @param value угол элемента
+         */
         while (value < 0){
             value += 360;
         }
@@ -399,23 +597,51 @@ class ActiveElement extends BaseElement {
     }
 
     get _orientation(){
+        /* 
+         * Гетер для получения ориентации элемента.
+         * 
+         * {number} ориентация элемента.
+         */
         return this.__orientation
     }
 
     get isInBranch(){
+        /* 
+         * Свойство: принадлежность элемента какой-либо ветви.
+         * 
+         * @return {boolean} наличие ветви.
+         */
         return this.branch != null;
     }
 
     resetBranch(){
+        /*
+         * Сбрасывает текущую ветвь элемента
+         * 
+         */
         this.branch = null;
     }
 
     move(dx, dy){
+        /* 
+         * Изменяет координаты элемента на (dx, dy) и пересчитывает координаты остальных опорных точек.
+         * 
+         * @param {number} dx абсцисса смещения в нашей собственной СК.
+         * @param {number} dy ордината смещения в нашей собственной СК.
+         */
         super.move(dx, dy);
         this._calcCoordinates();
     }
 
     isInArea(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в провод элемента.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -440,6 +666,12 @@ class ActiveElement extends BaseElement {
     }
 
     rotate(x, y){
+        /* 
+         * При переходе точкой (x, y) критических углов изменяет координаты выделенного узла и пересчитывает путь.
+         * 
+         * @param {number} x абсцисса курсора в нашей собственной СК.
+         * @param {number} y ордината курсора в нашей собственной СК.
+         */
 
         if (this.node1.selected){
 
@@ -559,6 +791,9 @@ class ActiveElement extends BaseElement {
     }
 
     _calcCoordinates(){  
+        /* 
+         * Расчитывает координаты опорных точек элемента.
+         */
 
         let x = this.x1;
         let y = this.y1;    
@@ -597,14 +832,28 @@ class ActiveElement extends BaseElement {
         this.node1.setPoint(this.x1, this.y1);
         this.node2.setPoint(this.x2, this.y2);
     }
+    
+    stopDrag(){
+         /*
+         * Фиксирует остановку перетаскивания элемента.
+         * Пересчитывает координаты опорных точек.
+         * Пересчитывает путь рисования.
+         */
+        super.stopDrag();
+        this._calcCoordinates();
+        this._calcPath();
+    }
 }
 
 
-class RoundElement extends ActiveElement{
+class RoundElement extends ActiveElement{ //Абстрактный класс для круговых элементов цепи
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для рисования кругового элемента с учетом ориентации.
+         */
 
         //SVG for drawing with params
 
@@ -652,6 +901,14 @@ class RoundElement extends ActiveElement{
     }
 
     isInArea(xAbs, yAbs){
+            /*
+             * Проверяет точку (xAbs, yAbs) на попадание в тело кругового элемента с учетом проводов.
+             * 
+             * @param xAbs абсцисса в нашей СК окна. 
+             * @param yAbs ордината в нашей СК окна.
+             * 
+             * @return true если точка попадает в границы, иначе - false.  
+             */
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
 
@@ -662,13 +919,19 @@ class RoundElement extends ActiveElement{
 }
 
 
-class MeasureDevice extends RoundElement{
+class MeasureDevice extends RoundElement{ //Абстрактный класс для измерительных приборов
 
     constructor(x, y, orientation, ctx){
         super(x, y, orientation, ctx);
     }
 
     draw(ctx){
+        /* 
+         * Расширенная версия рисования с измненными параметрами для измерительных приборов.
+         * 
+         * @param ctx контект рисования.
+         */
+
         super.draw(ctx)
         let content = new Path2D(this._contentPath);
         ctx.lineWidth = 3;
@@ -679,7 +942,7 @@ class MeasureDevice extends RoundElement{
 }
 
 
-class Resistor extends ActiveElement {
+class Resistor extends ActiveElement { //Класс резистора
 
     constructor(x, y, orientation, ctx) {
         super(x, y, orientation, ctx);
@@ -687,6 +950,9 @@ class Resistor extends ActiveElement {
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для рисования резистора с учетом ориентации.
+         */
         
         //SVG for drawing with orientation
 
@@ -746,6 +1012,14 @@ class Resistor extends ActiveElement {
     }
 
     isInArea(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в тело резистора с учетом проводов.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -770,7 +1044,7 @@ class Resistor extends ActiveElement {
 }
 
 
-class Key extends ActiveElement {
+class Key extends ActiveElement { //Класс ключа
 
     constructor(x, y, orientation, ctx) {
         super(x, y, orientation, ctx)
@@ -778,6 +1052,13 @@ class Key extends ActiveElement {
     }
 
     changeState(xAbs, yAbs){
+        /*  
+         * Изменяет состояние (вкл/выкл) при попадании точки в тело ключа.
+         *  
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна
+         */
+
         if (this.isInBody(xAbs, yAbs)){
 
             this.state = !this.state;
@@ -786,6 +1067,9 @@ class Key extends ActiveElement {
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для ключа с учетом ориентации и состояния. 
+         */
 
         //SVG for drawing with params
 
@@ -853,6 +1137,14 @@ class Key extends ActiveElement {
     }
 
     isInBody(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в тело кругового элемента.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -888,10 +1180,25 @@ class Key extends ActiveElement {
     }
 
     isInArea(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в тело ключа с учетом проводов.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
+
         return super.isInArea(xAbs, yAbs) | this.isInBody(xAbs, yAbs);
     }
 
     draw(ctx){
+        /* 
+         * Расширенная версия рисования с измненными параметрами для ключа.
+         * 
+         * @param ctx контект рисования.
+         */
+
         super.draw(ctx);
 
         let content = new Path2D(this._contentPath);
@@ -902,7 +1209,7 @@ class Key extends ActiveElement {
 }
 
 
-class Lamp extends RoundElement {
+class Lamp extends RoundElement { //Класс лампы
 
     constructor(x, y, orientation, ctx) {
         super(x, y, orientation, ctx);
@@ -910,6 +1217,9 @@ class Lamp extends RoundElement {
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для лампы с учетом ориентации. 
+         */
 
         //SVG for drawing with params
 
@@ -954,10 +1264,30 @@ class Lamp extends RoundElement {
             break;
         }
     }
+
+    draw(ctx){
+        /* 
+         * Расширенная версия рисования с измненными параметрами для лампы с учетом состояния.
+         * 
+         * @param ctx контект рисования.
+         */
+        if (this.node1.globalNode && this.node2.globalNode){
+            if (this.node1.globalNode.potential != null & this.node2.globalNode.potential != null){
+                if (this.node1.globalNode.potential - this.node2.globalNode.potential != 0){
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc((this.centerX) * SCALE, this.centerY * SCALE, mainRoundR * SCALE, 0, 2 * Math.PI);
+                    ctx.closePath();
+                    ctx.fill();
+                }  
+            }
+        }
+        super.draw(ctx);
+    }
 }
 
 
-class CurrentSource extends RoundElement{
+class CurrentSource extends RoundElement{ //Класс ИТ
 
     constructor(x, y, orientation, ctx){
         super(x, y, orientation, ctx);
@@ -965,6 +1295,9 @@ class CurrentSource extends RoundElement{
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для ИТ с учетом ориентации. 
+         */
 
         //SVG for drawing with params
 
@@ -1012,7 +1345,7 @@ class CurrentSource extends RoundElement{
 }
 
 
-class VoltageSource extends ActiveElement{
+class VoltageSource extends ActiveElement{ //Класс ИН
 
     constructor(x, y, orientation, ctx) {
         super(x, y, orientation, ctx);
@@ -1020,6 +1353,9 @@ class VoltageSource extends ActiveElement{
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для ИН с учетом ориентации. 
+         */
         
         //SVG for drawing with orientation
 
@@ -1083,6 +1419,15 @@ class VoltageSource extends ActiveElement{
     }
 
     isInArea(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в тело ИН с учетом проводов.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
+
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -1107,17 +1452,30 @@ class VoltageSource extends ActiveElement{
 }
 
 
-class Voltmetr extends MeasureDevice{
+class Voltmetr extends MeasureDevice{ //Класс вольтметра
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
 
     get indications(){
+        /* 
+         * Геттер для возврата напряжения на узлах вольтметра
+         * 
+         * @return {number} напряжение.
+         */
         if (this.node1.globalNode && this.node2.globalNode){
-            return Math.abs(this.node1.globalNode.potential - this.node2.globalNode.potential);
-        } else return 0;
+            if (this.node1.globalNode.activeElementsNodes.length > 0 & this.node2.globalNode.activeElementsNodes.length > 0){
+                if (this.node1.globalNode.potential != null & this.node2.globalNode.potential != null){
+                    return Math.abs(this.node1.globalNode.potential - this.node2.globalNode.potential);
+                }
+            }
+        }
+        return 0;
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для вольтметра с учетом ориентации. 
+         */
 
         //SVG for drawing with params
 
@@ -1148,19 +1506,36 @@ class Voltmetr extends MeasureDevice{
 }
 
 
-class Ampermetr extends MeasureDevice{
+class Ampermetr extends MeasureDevice{ //Класс амперметра
 
     constructor(x, y, orientation, ctx){
         super(x, y, orientation, ctx);
     }
 
+    set indications(value){
+        this._indications = value;
+    }
+
     get indications(){
-        if (this.branch){
-            return this.branch.current;
-        } else return 0;
+        /* 
+         * Геттер для возврата тока через амперметр.
+         * 
+         * @return {number} ток.
+         */
+
+        let value = 0; 
+        if (this.node1.globalNode && this.node2.globalNode){
+            if (this.node1.globalNode.potential != null & this.node2.globalNode.potential != null){
+                value = this._indications;
+            }
+        }
+        return Math.abs(value);
     }
     
     _calcPath(){
+        /* 
+         * Расчитывает SVG для амперметра с учетом ориентации. 
+         */
 
         //SVG for drawing with params
 
@@ -1192,15 +1567,33 @@ class Ampermetr extends MeasureDevice{
 }
 
 
-class Ommetr extends MeasureDevice{
+class Ommetr extends MeasureDevice{ //Класс омметра
 
     constructor(x, y, orientation, ctx){super(x, y, orientation, ctx)}
 
+    set indications(value){
+        this._indications = value;
+    }
+
     get indications(){
-        return 0;
+        /* 
+         * Геттер для возврата сопротивления между концами омметра.
+         * 
+         * @return {number} сопротивление.
+         */
+
+        let value = 0; 
+        if (this.node1.globalNode && this.node2.globalNode){
+            value = this._indications;
+            return Math.abs(value);
+        } else return Infinity;
+        
     }
 
     _calcPath(){
+        /* 
+         * Расчитывает SVG для омметра с учетом ориентации. 
+         */
 
         //SVG for drawing with params
 
@@ -1231,7 +1624,7 @@ class Ommetr extends MeasureDevice{
 }
 
 
-class Wire extends BaseElement{
+class Wire extends BaseElement{ //Класс провода
 
     constructor(x1, y1, x2, y2, ctx) {
         super(x1, y1, ctx);
@@ -1250,6 +1643,11 @@ class Wire extends BaseElement{
     }
 
     set selected(value){
+        /*
+         * Сетер для установки параметра выделения провода. 
+         * 
+         * @param value значение выделения.
+         */
         super.selected = value;
 
         this.x2Start = this.x2;
@@ -1261,7 +1659,12 @@ class Wire extends BaseElement{
     }
 
     rotate(x, y){
-
+        /* 
+         * Изменяет координаты выделенного узла на (x, y).
+         * 
+         * @param {number} x абсцисса курсора в нашей собственной СК.
+         * @param {number} y ордината курсора в нашей собственной СК.
+         */
         if (this.node1.selected){
             this.x1 = x;
             this.y1 = y;
@@ -1280,6 +1683,9 @@ class Wire extends BaseElement{
     }
 
     _calcPath(){
+        /* 
+         * Рассчитывает SVG для провода.
+         */
         this._path = `M${this.x1*SCALE} ${this.y1*SCALE}
         L${this.x2*SCALE} ${this.y2*SCALE}`
 
@@ -1288,6 +1694,15 @@ class Wire extends BaseElement{
     }
     
     isInArea(xAbs, yAbs){
+        /*
+         * Проверяет точку (xAbs, yAbs) на попадание в провод.
+         * 
+         * @param xAbs абсцисса в нашей СК окна. 
+         * @param yAbs ордината в нашей СК окна.
+         * 
+         * @return true если точка попадает в границы, иначе - false.  
+         */
+
 
         let x = Math.round((xAbs)/SCALE);
         let y = Math.round((yAbs)/SCALE);
@@ -1316,6 +1731,12 @@ class Wire extends BaseElement{
     }
 
     move(dx, dy){
+        /* 
+         * Изменяет координаты провода на (dx, dy) и пересчитывает координаты остальных опорных точек.
+         * 
+         * @param {number} dx абсцисса смещения в нашей собственной СК.
+         * @param {number} dy ордината смещения в нашей собственной СК.
+         */
         this.x1 = this.xStart + dx;
         this.y1 = this.yStart + dy;
         this.x2 = this.x2Start + dx;
@@ -1327,9 +1748,19 @@ class Wire extends BaseElement{
 }
 
 
-class Layout{
+class Layout{ //Класс макета
 
     constructor(){
+        /* 
+         * Конструктор класса макета для проектирования схем.
+         * 
+         * Создаёт пустые списки-атрибуты: 
+         * элементы макета, 
+         * новые элементы макета, 
+         * девайсы (источники, измерительные приборы)
+         * 
+         * Получает контекст для рисования, производит изначальные настройки.
+         */
 
         this.elements = [];
         this.newElements = [];
@@ -1355,6 +1786,9 @@ class Layout{
     }
 
     changeSize(){
+        /* 
+         * Изменяет размеры макета в соответствии с размерами окна.
+         */
         this.calcSize();
         this.ctxSetup();
         this._createNewElements();
@@ -1362,6 +1796,10 @@ class Layout{
     }
 
     calcSize(){
+        /* 
+         * Расчитывает координаты новых элементов и опорные точки макета.
+         */
+
         this.height = document.body.clientHeight;
         this.width = document.body.clientWidth;
 
@@ -1390,11 +1828,22 @@ class Layout{
     }
 
     ctxSetup(){
+        /* 
+         * Производит настройку контекста рисования.
+         */
+
         this.ctx = this.canvas.getContext('2d');
         this.ctx.lineWidth = 4;
     }
 
     checkPoint(xAbs, yAbs){
+        /* 
+         * Проверяет точку (xAbs, yAbs) на попадание во все элементы.
+         * При попадании точки выполняет манипуляции с элементами и вызывает перерисовку макета.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК. 
+         */
         
         let update = false;
 
@@ -1436,6 +1885,14 @@ class Layout{
     }
 
     _checkLastSelectedNew(xAbs, yAbs){
+        /* 
+         * Проверяет точку (xAbs, yAbs) на попадание в последний выбранный новый элемент.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК. 
+         * 
+         * @return {boolean} true, если необходима перерисовка, иначе - false.
+         */
 
         let update = false;
 
@@ -1453,6 +1910,14 @@ class Layout{
     }
 
     _checkLastSelected(xAbs, yAbs){
+               /* 
+         * Проверяет точку (xAbs, yAbs) на попадание в последний выбранный элемент макета.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК. 
+         * 
+         * @return {boolean} true, если необходима перерисовка, иначе - false.
+         */
 
         let update = false;
 
@@ -1470,6 +1935,14 @@ class Layout{
     }
 
     _checkNewElements(xAbs, yAbs){
+        /* 
+         * Проверяет точку (xAbs, yAbs) на попадание в новые элементы.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК. 
+         * 
+         * @return {boolean} true, если необходима перерисовка, иначе - false.
+         */
 
         let update = false;
         let isAnySelected = false;
@@ -1487,6 +1960,14 @@ class Layout{
     }
 
     _checkElements (xAbs, yAbs){
+        /* 
+         * Проверяет точку (xAbs, yAbs) на попадание в элементы на макете.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК. 
+         * 
+         * @return {boolean} true, если необходима перерисовка, иначе - false.
+         */
 
         let update = false;
         
@@ -1504,6 +1985,9 @@ class Layout{
     }
     
     invalidate(){
+        /* 
+         * Выполняет перерисовку макета.
+         */
         this.ctx.fillStyle = BACK_COLOR;
         this.ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
         
@@ -1522,6 +2006,13 @@ class Layout{
     }
 
     mouseClick(xAbs, yAbs){
+        /* 
+         * Запоминает координаты нажатия ЛКМ на выбранном элементе.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК.
+         */
+
         if (this.lastSelected){
             if (this.lastSelected.selected){
                 this._isPressed = true;
@@ -1539,6 +2030,13 @@ class Layout{
     }
 
     rightClick(xAbs, yAbs){
+        /* 
+         * Запоминает координаты нажатия ПКМ на макете и создаёт новый провод.
+         * 
+         * @param xAbs абсцисса в нашей собственной СК.
+         * @param yAbs ордината в нашей собственной СК.
+         */
+
         this.xStart = xAbs - this.canvas.offsetLeft;
         this.yStart = yAbs - this.canvas.offsetTop;
 
@@ -1549,6 +2047,10 @@ class Layout{
     }
 
     rightRelease(xAbs, yAbs){
+        /* 
+         * Завершает создание нового провода. Помещает провод в список элементов макета.
+         */
+
         this._isPressedRight = false;
         if (this.newWire.length > 0){
             this.elements.push(this.newWire);
@@ -1563,6 +2065,11 @@ class Layout{
     }x
 
     mouseRelease(){
+        /* 
+         * Завершает перетаскивание выделенного элемента.
+         * Проверяет новые координаты элемента на выход за границы.
+         */
+
         this._isPressed = false;
         if (this.lastSelected) {
             this.lastSelected.stopDrag()
@@ -1578,6 +2085,10 @@ class Layout{
     }
 
     _checkNewElementsPosition(){
+        /* 
+         * Проверяет координаты новых элементов. Если они расположены на макете, то добавляет их в массив элементов.
+         * Пересоздаёт новые элементы 
+         */
         if (this.lastSelectedNew){
             if (this.lastSelectedNew.x1 > this.leftLineX/SCALE & this.lastSelectedNew.x2 > this.leftLineX/SCALE){
                 this.elements.push(this.lastSelectedNew);
@@ -1590,6 +2101,9 @@ class Layout{
     }
 
     _createNewElements(){
+        /* 
+         * Создает новые элементы на левой панели.
+         */
         this.newElements = [];
         this.newElements.push(new Key(this.newRespX, this.newKeyRespY, 0, this.ctx));
         this.newElements.push(new Resistor(this.newRespX, this.newResistorRespY, 0, this.ctx));
@@ -1622,6 +2136,10 @@ class Layout{
     }
 
     deleteItem(){
+        /*  
+         * Удаляет выделенный элемент с макета.
+         */
+
         if (this.lastSelected){
             if (this.lastSelected.selected){
                 for (let index = 0; index < this.elements.length; index++){
@@ -1638,19 +2156,25 @@ class Layout{
 }
 
 
-class CircuitCalc{
+class CircuitCalc{ //Класс расчета цепи
 
     constructor(){
 
         this.nodes = [];
         this.branches = [];
 
-        this.baseNode;
+        this.baseNode = null;
         this.knownNode = null;
 
     };
 
     _checkShort(element){
+        /* 
+         * Для короткозамкнутых между собой узлов элементов (провод и замкнутый ключ) создает сущность одного узла на макете
+         * Если элемент подключен к существующему узлу макета, то он просто добавляется в этот узел.
+         * 
+         * @param {BaseElement} element - элемент, узлы котрого проверяются. 
+         */
 
         //Check and add Wires + short Keys
 
@@ -1665,6 +2189,12 @@ class CircuitCalc{
     }
 
     _checkNotShort(element){
+        /* 
+         * Для некороткозамкнутых элементов создает сущность одного узла на макете
+         * Если элемент один из узлов элемента подключен к существующему узлу макета, то он просто добавляется в этот узел.
+         * 
+         * @param {ActiveElement} element - элемент, узлы котрого проверяются. 
+         */
 
         //Check not short elements
 
@@ -1684,11 +2214,21 @@ class CircuitCalc{
         }
     }
 
-    checkWiresAndKeys(elements){
+    _checkWiresAndKeys(elements){
+        /* 
+         * Добавляет узлы ключей и проводов (амперметр считается проводом) в список узлов макета.
+         * 
+         * @param {Array} elements список элементов макета.
+         */ 
+
+        this.ampermetr = null;
 
         for (let element of elements){
-            if (element instanceof Wire){
+            if (element instanceof Wire | element instanceof Ampermetr){
                 this._checkShort(element)
+            }
+            if (element instanceof Ampermetr){
+                this.ampermetr = element;
             }
             if (element instanceof Key){
                 if (element.state){
@@ -1702,6 +2242,9 @@ class CircuitCalc{
     }
 
     tryLinkShortWires(){
+        /* 
+         * Сводит устранимые узлы, соединенные проводами к одному узлу
+         */
 
         for (let i = 0; i <= this.nodes.length; i++){
             for (let index1 = 0; index1 < this.nodes.length; index1++){
@@ -1715,14 +2258,22 @@ class CircuitCalc{
     }
 
     calcNodes(elements){
+        /* 
+         * Создает список узлов цепи, объединяя короткозамкнутые узлы в один.
+         * 
+         * @param {Array} elements - массив элементов на макете
+         */
 
         this.nodes = [];
 
-        this.checkWiresAndKeys(elements);
+        this._checkWiresAndKeys(elements);
         this.tryLinkShortWires();
 
         for (let element of elements){
-            if (!(element instanceof Wire) & !(element instanceof Key)){
+            if (element instanceof Ommetr){
+                this.ommetr = element;
+            }
+            if (!(element instanceof Wire) & !(element instanceof Key)& !(element instanceof Ampermetr)){
                 this._checkNotShort(element);
                 element.resetBranch();
             }
@@ -1734,6 +2285,9 @@ class CircuitCalc{
     }
 
     calcBranches(){
+        /* 
+         * Создает список ветвей цепи.
+         */
 
         this.branches = [];
 
@@ -1769,6 +2323,12 @@ class CircuitCalc{
     }
 
     makeMatix(G, I, nodesForCalc){
+        /* 
+         * Создает матрицу проводимостей (G) и вектор токов (I) из списка узлов, которые участвуют в построении цепи
+         * 
+         * @param {Array} G - массив, в который запишется матрица проводимостей.
+         * @param {Array} I - вектор, в который запишутся токи.
+         */
 
         let rowIndex = 0;
 
@@ -1778,6 +2338,7 @@ class CircuitCalc{
             }
 
             G.push(new Array());
+            I.push(0);
             for (let j = 0; j < nodesForCalc.length; j++){
 
                 let g = 0;
@@ -1821,32 +2382,31 @@ class CircuitCalc{
                         isMinus = false;
 
                         while (1){
-                            if (currentNode.otherNode.globalNode.isUnrecoverable){
-                                if (currentNode.otherNode.globalNode == nodesForCalc[i]){
+                            if (currentNode.globalNode.isUnrecoverable){
+                                if (currentNode.globalNode == nodesForCalc[i]){
                                     isPlus = true;
                                 }
                                 break;
                             }
-                            currentNode = currentNode.nextElementNode;
+                            currentNode = currentNode.sameNodeElement.otherNode;
                         }
 
                         currentNode = element.node1;
 
                         while (1){
-                            if (currentNode.otherNode.globalNode.isUnrecoverable){
-                                if (currentNode.otherNode.globalNode == nodesForCalc[i]){
+                            if (currentNode.globalNode.isUnrecoverable){
+                                if (currentNode.globalNode == nodesForCalc[i]){
                                     isMinus = true;
                                 }
                                 break;
                             }
-                            currentNode = currentNode.nextElementNode;
+                            currentNode = currentNode.sameNodeElement.otherNode;
                         }
                         if ((isPlus | isMinus) & !(isPlus&isMinus)){
-                            if (I[rowIndex]){
-                                I[rowIndex] += isPlus ? nominal: -nominal;
-                            } else {
-                                I[rowIndex] = isPlus ? nominal: -nominal;
-                            }
+                            I[rowIndex] += isPlus ? nominal: -nominal;
+                        }
+                        else {
+                            alert ('Неразбериха!')
                         }
                     }
                 }
@@ -1857,6 +2417,10 @@ class CircuitCalc{
     }
 
     calcUnrecoverableNodes(){
+        /* 
+         * Расчитывает потенциалы неустранимых узлов цепи.
+         */
+
         let G = [];
         let I = [];
         let deltas = [];
@@ -1896,11 +2460,19 @@ class CircuitCalc{
     }
 
     calc(elements){
+        /* 
+         * Расчитывает всю цепь на основе метода узловых потенциалов.
+         * 
+         * @param {Array} elements элементы на макете
+         */
         this.calcNodes(elements);
         this.calcBranches();
 
         let isVoltageSource = false;
         let isCurrentSource = false;
+
+        this.knownNode = null;
+        this.baseNode = null;
 
         for (let element of elements){
             if (element instanceof VoltageSource){
@@ -1919,30 +2491,36 @@ class CircuitCalc{
             for (let node of this.nodes){
                 if (node.isUnrecoverable){
                     this.baseNode = node;
+                    this.baseNode.potential = 0;
                     break;
                 }
             }  
         }
 
         //TODO Если 0 веток и есть ИТ от сделать его узлы неустранимыми и пересчитать ветки
-
-        this.knownNode = null;
-        this.baseNode = null;
         
         console.log(this.nodes);
         console.log(this.branches);
-        this.calcUnrecoverableNodes();
-        this.calcRecoverableNodes();
+        if (isVoltageSource | isCurrentSource){
+            this.calcUnrecoverableNodes();
+            this.calcRecoverableNodes();
+            this.setAmpermetrValue();
+        }
+        this.setOmmetrValue();
+        console.log(this.nodes);
     }
 
     calcRecoverableNodes(){
+        /* 
+         * Расчитывает потенциалы устранимых узлов цепи.
+         */
         for (let branch of this.branches){
-            if (branch.elements[0] instanceof VoltageSource){
+            if (branch.elements[0] instanceof VoltageSource | branch.elements[0] instanceof CurrentSource){
                 continue;
             }
             let startNode;
-            branch.current = (branch.sameNode1.potential - branch.sameNode2.potential) / branch.resistance;
-            for (let activeElementNode of branch.sameNode1.activeElementsNodes){
+            branch.current = Math.abs((branch.sameNode1.potential - branch.sameNode2.potential) / branch.resistance);
+            for (let activeElementNode of branch.fromNode.activeElementsNodes){
                 for (let element of branch.elements){
                     if (activeElementNode.element == element){
                         startNode = activeElementNode;
@@ -1950,91 +2528,299 @@ class CircuitCalc{
                     }
                 }
             }
-            let currentNode = startNode
-            //Если амперметр, то напряжение сохранить
+
+            let currentNode = startNode;
+ 
             while (1){
                 if (currentNode.otherNode.globalNode.isUnrecoverable){
                     break;
                 }
-                if (currentNode instanceof Ampermetr){
-                    currentNode.otherNode.globalNode.potential = currentNode.potential;
+                if (currentNode.element instanceof Lamp | currentNode.element instanceof Resistor){
+                    currentNode.otherNode.globalNode.potential = currentNode.globalNode.potential + branch.current * currentNode.element.resistance;
                 }
-
                 currentNode = currentNode.nextElementNode;
             }
 
         }
     }
+
+    setAmpermetrValue(){
+        /* 
+         * Устанавливает амперметру на макете значение тока, если он существует.
+         */
+        if (this.ampermetr){
+            this.ampermetr.indications = this.calcAmpermetrValue(this.ampermetr.node1.globalNode);
+        }
+    }
+
+    setOmmetrValue(){
+        /* 
+         * Устанавливает омметру на макете значение сопротивления, если он существует.
+         */
+        if (this.ommetr){
+            this.ommetr.indications = this.calcOmmetrValue(this.ommetr.node1.globalNode, this.ommetr.node2.globalNode);
+        }
+    }
+
+    calcAmpermetrValue(sameNode){
+        /* 
+         * Расчитывает алгеьраическую сумму токов, которые втекают и вытекают из узла. 
+         * Ток амперметра находится по закону токов Кирхгофа.
+         * 
+         * @param {SameNode} sameNode - один из узлов амперметра.
+         * 
+         * @return {Number} ток амперметра
+         */
+        let nodes = [];
+        let activeElementsNodes = [];
+        let sameNodes = [];
+        
+        for (let node of sameNode.nodes){
+            if (!(node.element instanceof Ampermetr)){ 
+                nodes.push(node);
+            }
+        }
+        
+        for (let activeElementNode of sameNode.activeElementsNodes){
+            activeElementsNodes.push(activeElementNode);
+        }       
+
+        for (let node of nodes){
+            let added = false;
+            for (let currentSameNode of sameNodes){
+                added = added | currentSameNode.checkShortNodes(node.element, false);
+            }
+            if(!added){
+                sameNodes.push(new SameNode(node, false));
+            }
+        }
+
+        for (let i = 0; i <= sameNodes.length; i++){
+            for (let index1 = 0; index1 < sameNodes.length; index1++){
+                for (let index2 = index1 + 1; index2 < sameNodes.length; index2++){                    
+                    if(sameNodes[index1].tryLink(sameNodes[index2]), false){
+                        sameNodes.splice(index2, 1);
+                    }
+                }
+            }
+        }
+
+        for (let activeElementNode of activeElementsNodes){
+            let nodeAdded = false;
+
+            for (let sameNode of sameNodes){
+                nodeAdded = nodeAdded | sameNode.checkElementNode(activeElementNode, false);
+            }
+            if (!nodeAdded){
+                sameNodes.push(new SameNode(activeElementNode, false));
+            }
+        }
+        let value = 0;
+
+        for (let sameNode of sameNodes){
+            for (let activeElementNode of sameNode.activeElementsNodes){
+                if (activeElementNode.element.branch){
+                    if (activeElementNode.element.branch.current){
+                        if (activeElementNode.element instanceof CurrentSource){
+                            if (activeElementNode.globalNode.potential < activeElementNode.otherNode.globalNode.potential){
+                                value -= activeElementNode.element.branch.current
+                            } else{
+                                value += activeElementNode.element.branch.current
+                            }
+                        } else{
+                            if (activeElementNode.globalNode.potential < activeElementNode.otherNode.globalNode.potential){
+                                value += activeElementNode.element.branch.current
+                            } else{
+                                value -= activeElementNode.element.branch.current
+                            }
+                        }
+                    }
+                }
+            }
+            if (value == Infinity | value == 0){
+                value = 0;
+                continue;
+            } else return value;
+        }
+        return 0;
+    }
+
+    calcOmmetrValue(node1, node2){
+        /* 
+         * Расчитывает сопротивление между узлами node1 и node2 на основе теории графов.
+         * Частично используется алгоритм Дейкстры и поиск в ширину.
+         * 
+         * @param {SameNode} node1 первый узел, к котрому подключен омметр.
+         * @param {SameNode} node2 второй узел, к котрому подключен омметр.
+         * 
+         * @return {Number} сопротивление между точками
+         */
+        for (let node of this.nodes){
+            for (let activeElementNode of node.activeElementsNodes){
+                if (activeElementNode.element instanceof VoltageSource){
+                    continue;
+                }
+                let edge = new Edge(activeElementNode.element); 
+                for (let neighbourNode of activeElementNode.otherNode.globalNode.neighbourNodes){
+                    if (neighbourNode['edge'].element == activeElementNode.element){
+                        edge = neighbourNode[edge];
+                    }
+                }
+                node.neighbourNodes.push({'node': activeElementNode.otherNode.globalNode, 'edge': new Edge(activeElementNode.element)})
+            }
+        }
+
+        node1.resistance = 0;
+        let queue = [node1];
+
+        while(queue.length){
+            
+            let activeNode = queue.shift();
+
+            for (let neighbourNode of activeNode.neighbourNodes){
+                if (!(neighbourNode['edge'].calced)){
+                    neighbourNode['edge'].calced = true;
+
+                    if (neighbourNode['node'] != node2){
+                        queue.push(neighbourNode['node']);
+                    }
+
+                    if (neighbourNode['node'].resistance == Infinity){
+                        neighbourNode['node'].resistance = activeNode.resistance + neighbourNode['edge'].resistance;
+                    } else {
+                        if (neighbourNode['edge'].resistance){
+                            neighbourNode['node'].resistance = neighbourNode['node'].resistance * (neighbourNode['edge'].resistance + activeNode.resistance) / (neighbourNode['node'].resistance + neighbourNode['edge'].resistance + activeNode.resistance)
+                        } else{
+                            neighbourNode['node'].resistance = activeNode.resistance;
+                        }
+                    }
+                }
+            }
+        }
+        return node2.resistance;
+    }
 }
 
 
-class SameNode{
+class Edge{ //Класс ребра графа (ветвь между неустранимыми узлами)
+    constructor(element){
+        this.element = element;
+        this.calced = false;
+    }
 
-    constructor(arg){
+    get resistance(){
+        /* 
+         * Возвращает сопротивление ребра (ветви)
+         */
+        let resistance = 0;
+        if (this.element instanceof Lamp | this.element instanceof Resistor){
+            resistance = this.element.resistance;
+        }
+        return resistance;
+    }
+}
+
+
+class SameNode{ //Класс узла макета
+
+    constructor(arg, shouldRemember=true){
+        /* 
+         * Конструктор класса узла макета
+         * 
+         * @param {Array|Node} arg - один или два узла элемента.
+         * @param {Boolean} shouldRemember (default=true) флаг на запоминание узлом элемента принадлежности к узлу макета.
+         */ 
 
         this.nodes = [];
         this.activeElementsNodes = [];
         this.branches = [];
-        this.potential = 0;
+        this.potential = null;
         this.cicles = 0;
+        this.neighbourNodes = [];
+        this.resistance = Infinity;
+        this.visited = false;
 
         if (arg instanceof Array){
             for (let node of arg){
                 this.nodes.push(node);
-                node.globalNode = this;
+                if (shouldRemember) node.globalNode = this;
             }
         }else{ 
-            if (arg.element instanceof Key | arg.element instanceof Voltmetr){
+            if (arg.element instanceof Key | arg.element instanceof Voltmetr | arg.element instanceof Ampermetr | arg.element instanceof Ommetr){
                 this.nodes.push(arg);     
             }else{
                 this.activeElementsNodes.push(arg);
             }
-            arg.globalNode = this;
+            if (shouldRemember) arg.globalNode = this;
         }
     }
 
     get isUnrecoverable(){
-        if (this.activeElementsNodes.length - this.cicles * 2 >= 3){
+        /* 
+         * Возвращает true, если узел неустранимый или к нему подключен источник.
+         */
+        if (this.activeElementsNodes.length  >= 3){
             return true;
         }
-        for (let node of this.activeElementsNodes){
-            if (node.element instanceof VoltageSource){
-                return true
+        if (this.activeElementsNodes.length == 2){
+            for (let node of this.activeElementsNodes){
+                if (node.element instanceof VoltageSource | node.element instanceof CurrentSource){
+                    return true
+                }
             }
         }
         return false;
     }
 
     get isBreak(){
+        /* 
+         * Возвращает true, если к узлу подключено меньше некороткозамкнутых элементов цепи.
+         */
         return this.activeElementsNodes.length <= 1;
     }
 
-    checkShortNodes(wire){
+    checkShortNodes(wire, shouldRemember=true){
+        /* 
+         * Проверяет короткозамкнутый элемент на связь с настоящим узлом макета.
+         * 
+         * @param {BaseElement} wire - короткозамкнутый элемент.
+         * @param {Boolean} shouldRemember (default=true) флаг на запоминание узлом элемента принадлежности к узлу макета.
+         * 
+         * @return {Boolean} true, если узлы элемента добавлены к настоящему узлу макета. Иначе - fasle.
+         */
 
         if (this.containsPoint(wire.node1)){
             this.nodes.push(wire.node1, wire.node2);
-            wire.node1.globalNode = this;
-            wire.node2.globalNode = this;
+            if (shouldRemember) wire.node1.globalNode = this;
+            if (shouldRemember) wire.node2.globalNode = this;
             return true;
         }
 
         if (this.containsPoint(wire.node2)){
             this.nodes.push(wire.node1, wire.node2);
-            wire.node1.globalNode = this;
-            wire.node2.globalNode = this;
+            if (shouldRemember) wire.node1.globalNode = this;
+            if (shouldRemember) wire.node2.globalNode = this;
             return true;
         }
 
         return false;
     }
 
-    checkElementNode(node){
+    checkElementNode(node, shouldRemember=true){
+        /* 
+         * Проверяет узел элемента на связь с настоящим узлом макета.
+         * 
+         * @param {Node} node - узел элемента.
+         * @param {Boolean} shouldRemember (default=true) флаг на запоминание узлом элемента принадлежности к узлу макета.
+         * 
+         * @return {Boolean} true, если узел элемента добавлен к настоящему узлу макета. Иначе - fasle.
+         */
 
         if (this.containsPoint(node)){
 
-            node.globalNode = this;
+            if (shouldRemember) node.globalNode = this;
 
-            if (node.element instanceof Key | node.element instanceof Voltmetr){
+            if (node.element instanceof Key | node.element instanceof Voltmetr | node.element instanceof Ommetr){
                 this.nodes.push(node);
                 return true;
             }
@@ -2045,7 +2831,16 @@ class SameNode{
         return false;
     }
 
-    tryLink(sameNode){
+    tryLink(sameNode, shouldRemember=true){
+        /* 
+         * Проверяет связь узла макета sameNode с настоящим узлом макета.
+         * При возможности совместить, совмещает эти узлы.
+         * 
+         * @param {SameNode} sameNode проверяемый узел.
+         * @param {Boolean} shouldRemember (default=true) флаг на запоминание узлом элемента принадлежности к узлу макета.
+         * 
+         * @return {Boolean} true, если узлы совмещены. Иначе - fasle.
+         */
 
         let shouldAdd = false;
 
@@ -2056,23 +2851,32 @@ class SameNode{
         }
 
         if (shouldAdd){
-            this.link(sameNode);
+            this.link(sameNode, shouldRemember);
             return true;
         }
 
         return false;
     }
 
-    link(sameNode){
+    link(sameNode, shouldRemember=true){
+        /* 
+         * Совмещает узел макета sameNode с настоящим узлом макета.
+         * 
+         * @param {SameNode} sameNode совмещаемый узел.
+         * @param {Boolean} shouldRemember (default=true) флаг на запоминание узлом элемента принадлежности к узлу макета.
+         */
         for (let node of sameNode.nodes){
             if (!(this.containsNode(node))){
                 this.nodes.push(node);
-                node.globalNode = this;
+                if (shouldRemember) node.globalNode = this;
             }
         }
     }
 
     tryOptimize(){
+        /* 
+         * Если элемент цепи подключен двумя концами к одному и тому же узлу макета, то функция исключает его из рассчетов.
+         */
         for (let node of this.activeElementsNodes){
             if (node.globalNode == node.otherNode.globalNode){
                 this.replaceNodes(node, node.otherNode)
@@ -2081,6 +2885,13 @@ class SameNode{
     }
 
     replaceNodes(node1, node2){
+        /* 
+         * Исключает узлы элемента node1 и node2 из расчёта цепи.
+         * 
+         * @param {Node} node1 первый узел элемента.
+         * @param {Node} node2 второй узел элемента.
+         */
+
         for (let index = 0; index < this.activeElementsNodes.length; index++){
             if (node1 == this.activeElementsNodes[index]){
                 this.activeElementsNodes.splice(index, 1);
@@ -2096,6 +2907,14 @@ class SameNode{
     }
 
     containsPoint(checkingNode){
+        /* 
+         * Проверяет узел элемента checkingNode на связь с настоящим узлом макета 
+         * по координатам в нашей собственной СК
+         * 
+         * @param {Node} checkingNode проверяемый узел элемента.
+         * 
+         * @return {Boolean} true, если узлы связаны. Иначе - false.
+         */
 
         for (let node of this.nodes){
             if (node.x == checkingNode.x & node.y == checkingNode.y){
@@ -2113,6 +2932,13 @@ class SameNode{
     }
 
     containsNode(checkingNode) {
+        /* 
+         * Проверяет узел элемента checkingNode на связь с настоящим узлом макета. 
+         * 
+         * @param {Node} checkingNode проверяемый узел элемента.
+         * 
+         * @return {Boolean} true, если узлы связаны. Иначе - false.
+         */
 
         for (let node of this.nodes) {
             if (node == checkingNode) {
@@ -2131,9 +2957,16 @@ class SameNode{
 }
 
 
-class Branch{
+class Branch{ //Класс ветви цепи
     
     constructor(sameNode1, sameNode2, elements){
+        /* 
+         * Конструктор класса ветви.
+         * 
+         * @param {SameNode} sameNode1 первый узел макета для настоящей ветви.
+         * @param {SameNode} sameNode2 второй узел макета для настоящей ветви.
+         * @param {Array} elements список элементов ветви. 
+         */
         this.sameNode1 = sameNode1;
         this.sameNode2 = sameNode2;
 
@@ -2150,6 +2983,11 @@ class Branch{
     }
 
     get resistance(){
+        /*  
+         * Возвращает сопротивление ветви.
+         * 
+         * @return {Number} сопротивление.
+         */
         let value = 0;
         for (let element of this.elements){
             if (element instanceof Resistor | element instanceof Lamp){
@@ -2160,10 +2998,20 @@ class Branch{
     }
 
     set current(value){
+        /* 
+         * Устанавливает ток ветви.
+         * 
+         * @param {Number} value ток ветви. 
+         */
         this._current = value;
     }
 
     get current(){
+        /* 
+         * Возвращает ток ветви. Причем, если есть ИТ, то возвращается его номинал.
+         * 
+         * @return {Number} ток ветви
+         */
         for (let element of this.elements){
             if (element instanceof CurrentSource){
                 return element.current;
@@ -2171,10 +3019,37 @@ class Branch{
         }
         return this._current;
     }
+
+    get fromNode(){
+        /* 
+         * Возвращает узел ветви с наибольшим потенциалом (откуда течет ток).
+         *
+         * @return {SameNode} узел с наибольшим потенциалом.
+         */
+        if (this.sameNode1.potential <= this.sameNode2.potential){
+            return this.sameNode1;
+        } else{
+            return this.sameNode2;
+        }
+    }
+
+    get toNode(){
+        /* 
+         * Возвращает узел ветви с наименьшим потенциалом (куда течет ток).
+         *
+         * @return {SameNode} узел с наименьшим потенциалом.
+         */
+        if (this.sameNode1.potential > this.sameNode2.potential){
+            return this.sameNode1;
+        } else{
+            return this.sameNode2;
+        }
+    }
 }
 
 
-class App{
+class App{ //Класс приложения
+
     constructor(){
         this.layout = new Layout();
         this.calc = new CircuitCalc();
@@ -2186,6 +3061,12 @@ class App{
     }
 
     doubleClick(xAbs, yAbs){
+        /* 
+         * Открывает настройки элемента или изменяет состояние ключа, в границу которого попадет точка (xAbs, yAbs)
+         * 
+         * @param {Number} xAbs абсцисса курсора в нашей собственной СК.
+         * @param {Number} yAbs ордината курсора в нашей собственной СК.
+         */
         if (this.layout.lastSelected){
             if (this.layout.lastSelected instanceof Key){
                 this.layout.lastSelected.changeState(xAbs, yAbs);
@@ -2203,6 +3084,9 @@ class App{
     }
 
     openSetup(){
+        /* 
+         * Открывает всплывающее окно для настроек выбранного элемента.
+         */
         this.isSetupOpened = true;
         let element = this.layout.lastSelected;
 
@@ -2216,6 +3100,11 @@ class App{
     }
 
     setValue(){
+        /* 
+         * Валидирует введенный в окне настроек параметр. 
+         * Если валидация проходит успешно, изменяет параметры выделенного элемента.
+         * Иначе - выводит сообщение о некорректных параметрах. 
+         */
         if (!this.isSetupOpened){
             return;
         }
@@ -2239,6 +3128,9 @@ class App{
     }
 
     mouseRelease(e){
+        /* 
+         * В зависимости того, отпущена ПКМ или ЛКМ, вызывает соответсвующие функции модуля layout.
+         */
         switch (e.which){
             case 1:
                 this.layout.mouseRelease();
@@ -2252,6 +3144,9 @@ class App{
     }
 
     closeSetup(){
+        /* 
+         * Закрывает окно изменения параметров.
+         */
         if (!this.isSetupOpened){
             return;
         }
@@ -2268,6 +3163,9 @@ class App{
 
 
 function canvasMove(e){
+    /* 
+     * Вычисляет позицию курсора в данный момент времени и передает её в модуль app.layout
+     */
     let xAbs = e.pageX - app.layout.canvas.offsetLeft;
     let yAbs = e.pageY - app.layout.canvas.offsetTop;
 
@@ -2276,11 +3174,17 @@ function canvasMove(e){
 
 
 function canvasRelease(e){
+    /* 
+     * Передаёт сообщение об отпускании кнопки мыши в модуль app.
+     */
     app.mouseRelease(e);       
 }
 
 
 function canvasClick(e){
+    /* 
+     * Передает сообщение о нажатии соответствующей кнопки мыши в модуль app.layout.
+     */ 
     switch (e.which){
         case 1:
             app.layout.mouseClick(e.pageX, e.pageY);
@@ -2293,24 +3197,40 @@ function canvasClick(e){
 
 
 function canvasResize(e){
+    /* 
+     * Передает сообщение об изменении размера окна в модуль app.layout.
+     */
     app.layout.changeSize();
 }
 
 
 function deleteContextMenu(e){
+    /*
+     * Предотвращает открытие контекстного меню в приложении.
+     */
     e.preventDefault();
 }
 
 
 function doubleClick(e){
+    /* 
+     * Передает сообщение о двойном нажатии кнопки мыши в модуль app.
+     */ 
     app.doubleClick(e.pageX, e.pageY);
 }
 
 
 function releaseButton(e){
+    /* 
+     * Передает сообщение об отпускании кнопки Delete в модуль app.layout
+     * По нажатию на Escape закрывает открытое окно изменения параметров без сохранения.
+     * По нажатию на Enter закрывает открытое окно изменения параметров и сохраненяет параметры.
+     */
     if (e.code == 'Delete') {
         if (!app.isSetupOpened){
             app.layout.deleteItem(e.pageX, e.pageY);
+            app.calc.calc(app.layout.elements)
+            app.layout.invalidate();
         }
     }
     if (e.code == "Escape"){
@@ -2323,17 +3243,28 @@ function releaseButton(e){
 
 
 function closeSetup(e){
+    /*  
+     * Передает в модуль app команду закрыть окно изменения парамертов.
+     */
     app.closeSetup();
 }
 
 
 function setValue(e){
+    /*  
+     * Передает в модуль app команду изменить параметр элемента.
+     */
     app.setValue();
 }
 
 
 function det(A){
-
+    /* 
+     * Возвращает определитель матрицы A.
+     * @param {Array} A - квадратная матрица (массив массивов)
+     * 
+     * @return {Number} определитель. 
+     */
     let N = A.length, B = [], denom = 1, exchanges = 0;
 
     for (let i = 0; i < N; ++i){
@@ -2377,8 +3308,10 @@ function det(A){
     }
 }
 
-
+//Создание экзампляра приложения
 let app = new App();
+
+//Изменение некоторых функций по умолчанию для canvas на собственные.
 
 app.layout.canvas.oncontextmenu = deleteContextMenu;
 app.layout.canvas.onmousemove = canvasMove;
@@ -2388,7 +3321,11 @@ app.layout.canvas.onresize = canvasResize;
 app.layout.canvas.onmouseout = canvasRelease;
 app.layout.canvas.ondblclick = doubleClick;
 
+//Создание событий для окна изменения параметров.
+
 document.querySelector('#cancelButton').addEventListener('click', closeSetup);
 document.querySelector('#setButton').addEventListener('click', setValue);
 document.addEventListener('keyup', releaseButton);
+
+//При изменении окна координаты canvas будут пересчитываться автоматически.
 window.onresize = canvasResize;
